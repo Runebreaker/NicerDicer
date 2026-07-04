@@ -35,3 +35,4 @@ replay_pid*
 
 # Secrets
 /src/main/resources/token.txt
+/.env

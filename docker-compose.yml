@@ -1,0 +1,9 @@
+services:
+  nicerdicer:
+    image: ghcr.io/runebreaker/nicerdicer:latest
+    container_name: nicerdicer
+    restart: unless-stopped
+    environment:
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:?DISCORD_BOT_TOKEN must be set}
+    volumes:
+      - ./db:/app/db

@@ -8,7 +8,7 @@ import kotlinx.coroutines.runBlocking
 
 object Main
 {
-    val token = this.javaClass.getResourceAsStream("/token.txt")?.bufferedReader()?.readText()
+    val token = System.getenv("DISCORD_BOT_TOKEN")
     var kord: Kord? = null
         private set
 
@@ -22,7 +22,11 @@ object Main
 
     private suspend fun bot()
     {
-        if (token == null) return
+        if (token == null)
+        {
+            println("Main: DISCORD_BOT_TOKEN environment variable is not set. Exiting.")
+            return
+        }
         kord = Kord(token)
 
         kord?.let { kord ->
