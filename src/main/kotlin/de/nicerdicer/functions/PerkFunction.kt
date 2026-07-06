@@ -56,7 +56,7 @@ object PerkFunction : FunctionBase("perk", "Rolls perks.")
                 }
             }
 
-            embedBuilder.title = "rolledPerk.name (${rolledPerk.card})"
+            embedBuilder.title = "${rolledPerk.name} (${rolledPerk.card})"
             embedBuilder.description = rolledPerk.text
             footerBuilder.text = rolledPerk.meaning
             embedBuilder.footer = footerBuilder
