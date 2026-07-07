@@ -1,6 +1,7 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
+import de.nicerdicer.db.TagEntry
 import dev.kord.common.entity.TextInputStyle
 import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.modal
@@ -15,6 +16,10 @@ import dev.kord.rest.builder.interaction.subCommand
 
 object TagFunction : FunctionBase("tag", "Show given tag.")
 {
+    internal const val EDIT_TAG_MODAL_ID = "edit_tag"
+
+    internal data class EditTagModalDefaults(val name: String, val content: String)
+
     override suspend fun prepare(kord: Kord)
     {
         // register command with subcommands: create, edit, delete, get, list
@@ -24,8 +29,8 @@ object TagFunction : FunctionBase("tag", "Show given tag.")
                 string("content", "Tag content") { required = false }
             }
             subCommand("edit", "Edit an existing tag (owner only)") {
-                string("name", "Tag name") { required = true }
-                string("content", "New tag content") { required = true }
+                string("name", "Tag name") { required = false }
+                string("content", "New tag content") { required = false }
             }
             subCommand("delete", "Delete a tag (owner only)") {
                 string("name", "Tag name") { required = true }
@@ -81,15 +86,37 @@ object TagFunction : FunctionBase("tag", "Show given tag.")
 
                 "edit" ->
                 {
-                    val response = event.interaction.deferPublicResponse()
                     val name = (event.interaction.command.strings["name"] ?: "").trim()
                     val responseContent = event.interaction.command.strings["content"] ?: ""
-                    if (name.isBlank() || responseContent.isBlank())
+                    val ownerId = event.interaction.user.id.toString()
+                    if (shouldOpenEditModal(name, responseContent))
                     {
-                        response.respond { content = "Usage: /tag edit name:<name> content:<text>" }
+                        val existingTag = if (name.isBlank()) null else Database.getTag(name)
+                        val defaults = resolveEditModalDefaults(name, responseContent, ownerId, existingTag)
+                        if (defaults == null)
+                        {
+                            event.interaction.respondEphemeral { content = "Failed to update tag '$name' - it might not exist or you might not be the owner." }
+                            return
+                        }
+                        event.interaction.modal("Edit Tag", EDIT_TAG_MODAL_ID) {
+                            label("Tag name") {
+                                textInput(TextInputStyle.Short, "tag_name") {
+                                    required = true
+                                    placeholder = "Insert your tag name here!"
+                                    if (defaults.name.isNotEmpty()) value = defaults.name
+                                }
+                            }
+                            label("Tag content") {
+                                textInput(TextInputStyle.Paragraph, "tag_content") {
+                                    required = true
+                                    placeholder = "Insert your new tag content here!"
+                                    if (defaults.content.isNotEmpty()) value = defaults.content
+                                }
+                            }
+                        }
                         return
                     }
-                    val ownerId = event.interaction.user.id.toString()
+                    val response = event.interaction.deferPublicResponse()
                     val ok = Database.updateTag(name, ownerId, responseContent)
                     if (ok) response.respond { content = "Tag '$name' updated." }
                     else response.respond { content = "Failed to update tag '$name' — it might not exist or you might not be the owner." }
@@ -164,6 +191,30 @@ object TagFunction : FunctionBase("tag", "Show given tag.")
                 if (ok) event.interaction.respondEphemeral { content = "Tag '$name' created." }
                 else event.interaction.respondEphemeral { content = "Failed to create tag '$name' — it may already exist (case-insensitive) or an error occurred." }
             }
+
+            EDIT_TAG_MODAL_ID ->
+            {
+                val name = event.interaction.textInputs["tag_name"]?.value?.trim() ?: ""
+                val tagContent = event.interaction.textInputs["tag_content"]?.value ?: ""
+                if (name.isBlank() || tagContent.isBlank())
+                {
+                    event.interaction.respondEphemeral { content = "Tag name and content cannot be empty." }
+                    return
+                }
+                val ownerId = event.interaction.user.id.toString()
+                val ok = Database.updateTag(name, ownerId, tagContent)
+                if (ok) event.interaction.respondEphemeral { content = "Tag '$name' updated." }
+                else event.interaction.respondEphemeral { content = "Failed to update tag '$name' - it might not exist or you might not be the owner." }
+            }
         }
+    }
+
+    internal fun shouldOpenEditModal(name: String, content: String): Boolean = name.isBlank() || content.isBlank()
+
+    internal fun resolveEditModalDefaults(requestedName: String, requestedContent: String, requesterId: String, existingTag: TagEntry?): EditTagModalDefaults?
+    {
+        if (requestedName.isBlank()) return EditTagModalDefaults("", requestedContent)
+        if (existingTag == null || existingTag.owner != requesterId) return null
+        return EditTagModalDefaults(existingTag.name, existingTag.content)
     }
 }
