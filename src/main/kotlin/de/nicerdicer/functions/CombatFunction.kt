@@ -166,7 +166,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                     return
                 }
 
-                val rollResult = RollResult(rollString, 20, 1, 0)
+                val rollResult = RollResult(rollString, 20, 1, 4)
 
                 combat.setInitiative(user, result, rollResult)
 
