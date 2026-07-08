@@ -51,7 +51,7 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
     private const val COLOR_GOOD = "#FFFF00"       // Yellow
     private const val COLOR_EVIL = "#800080"       // Purple
     private const val COLOR_QUEST = "#40E0D0"      // Turquoise
-    private const val COLOR_CHALLENGED = "#DDDDDD" // Dark Gray
+    private const val COLOR_CHALLENGED = "#212121" // Dark Gray
 
     override suspend fun prepare(kord: Kord)
     {
@@ -310,8 +310,7 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
                         return
                     }
 
-                    val ownerId = event.interaction.user.id.toString()
-                    val ok = Database.claimTerritory(id, ownerId, guildIdVal, nameOpt, "Quest", "user")
+                    val ok = Database.claimTerritory(id, "Questlocked", guildIdVal, nameOpt, "Quest", "quest")
                     if (!ok)
                     {
                         response.respond { content = "Failed to claim territory $id as a quest. It may already be owned by someone else." }
@@ -323,7 +322,7 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
                         val outPath = renderFullMapWithClaims(guildIdVal)
                         val f = File(outPath)
                         response.respond {
-                            content = "Territory $id claimed as Quest by moderator and map updated."
+                            content = "Territory $id claimed as Quest and map updated."
                             addFile(f.toPath())
                         }
                     } catch (e: Exception)
@@ -419,7 +418,8 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
                             if (t.ownerType == "faction")
                             {
                                 "${"Faction:".bold()} ${t.ownerId} ${"Color:".bold()} ${(t.color ?: "White")}"
-                            } else
+                            }
+                            else if (t.ownerType == "user")
                             {
                                 "${"Owner:".bold()} ${
                                     getMemberName(
@@ -428,6 +428,10 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
                                         Snowflake(t.ownerId)
                                     )
                                 } ${"Color:".bold()} ${(t.color ?: "White")}"
+                            }
+                            else
+                            {
+                                "Questlocked".bold()
                             }
                         } catch (e: Exception)
                         {
