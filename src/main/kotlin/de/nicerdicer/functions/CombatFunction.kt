@@ -1,6 +1,7 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.util.RollResult
+import de.nicerdicer.util.italic
 import de.nicerdicer.util.stricken
 import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.createPublicFollowup
@@ -574,7 +575,9 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
     {
         val sb = StringBuilder()
 
-        for (combatant in initiativeOrder)
+        sb.append("Ties will be resolved after combat start!".italic()).append("\n")
+
+        for (combatant in initiativeOrder.sortedByDescending { it.rollResult.result })
         {
             sb.append("${combatant.user.effectiveName} (${combatant.rollResult.result})\n")
         }
