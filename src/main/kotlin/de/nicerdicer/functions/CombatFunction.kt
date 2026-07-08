@@ -48,13 +48,14 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
             subCommand("remind", "Reminds you in the given amount of turns of something! (0 for your next turn)") {
-                integer("rounds", "In how many rounds to remind you.") {
+                integer("rounds", "In how many rounds to remind you. 0 reminds you in your next turn.") {
                     required = true
                 }
                 string("note", "What to remind you of.") {
                     required = true
                 }
             }
+            subCommand("reminders", "Lists all reminders for this combat.")
         }
     }
 
@@ -324,6 +325,32 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                     content = "Reminding you of '$note' in round ${roundAmount + combat.roundTracker}!"
                 }
             }
+
+            "reminders" ->
+            {
+                val response = event.interaction.deferEphemeralResponse()
+
+                if (!combat.isRunning)
+                {
+                    response.respond {
+                        content = "Combat hasn't started yet!"
+                    }
+                    return
+                }
+
+                val reminders = combat.getAllActiveRemindersForUser(user)
+
+                val sb = StringBuilder()
+
+                for (reminder in reminders)
+                {
+                    sb.append("Round ${reminder.key}, Turn ${reminder.value.first}: ${reminder.value.second}\n")
+                }
+
+                response.respond {
+                    content = sb.toString()
+                }
+            }
         }
     }
 
@@ -342,6 +369,7 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
 
     /**
      * Adds a reminder to this combat for the specified user.
+     * @param roundDelay If 0, reminds the user on their next turn, otherwise in roundDelay rounds.
      */
     fun addReminder(roundDelay: Int, user: User, note: String)
     {
@@ -353,8 +381,8 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
             return
         }
 
-        if (userTurn > turnTracker) trackedReminders.getOrPut(roundTracker) { mutableMapOf() }.getOrPut(turnTracker) { mutableListOf() }.add(Pair(user, note))
-        else trackedReminders.getOrPut(roundTracker + 1) { mutableMapOf() }.getOrPut(turnTracker) { mutableListOf() }.add(Pair(user, note))
+        if (userTurn > turnTracker) trackedReminders.getOrPut(roundTracker) { mutableMapOf() }.getOrPut(userTurn) { mutableListOf() }.add(Pair(user, note))
+        else trackedReminders.getOrPut(roundTracker + 1) { mutableMapOf() }.getOrPut(userTurn) { mutableListOf() }.add(Pair(user, note))
     }
 
     /**
@@ -372,6 +400,24 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
         }
 
         return sb.toString()
+    }
+
+    fun getAllActiveRemindersForUser(user: User): Map<Int, Pair<Int, String>>
+    {
+        val reminders = mutableMapOf<Int, Pair<Int, String>>()
+
+        for ((round, turnMap) in trackedReminders)
+        {
+            for ((turn, notes) in turnMap)
+            {
+                for (note in notes)
+                {
+                    if (((round == roundTracker && turn > turnTracker) || (round > roundTracker)) && note.first == user) reminders[round] = Pair(turn, note.second)
+                }
+            }
+        }
+
+        return reminders
     }
 
     fun resetReminders() = trackedReminders.clear()
