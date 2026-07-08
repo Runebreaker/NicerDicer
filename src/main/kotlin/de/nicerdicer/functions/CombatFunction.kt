@@ -1,9 +1,8 @@
 package de.nicerdicer.functions
 
-import de.nicerdicer.util.KordUtil
-import de.nicerdicer.util.KordUtil.getMemberName
 import de.nicerdicer.util.RollResult
-import dev.kord.common.entity.Snowflake
+import de.nicerdicer.util.italic
+import de.nicerdicer.util.stricken
 import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.createPublicFollowup
 import dev.kord.core.behavior.interaction.response.respond
@@ -28,6 +27,10 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
             subCommand("start", "Starts combat!")
             subCommand("finish", "Finish combat!")
             subCommand("leave", "Leave combat.")
+            subCommand("init", "Sets initiative and roll type.") {
+                integer("result", "Initiative result.") { required = true }
+                string("roll", "String for what roll is used; e.g. 3d20+4") { required = true }
+            }
             subCommand("initiative", "Rolls init!") {
                 integer("amount", "Amount of dice to roll, important for SW etc.") {
                     required = false
@@ -41,18 +44,19 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
             subCommand("list", "Lists everyone in combat.")
             subCommand("delay", "Delays your turn until after the given person's") {
                 user("user", "User to delay your turn after.") {
-                    required = false
+                    required = true
                     autocomplete = true
                 }
             }
-            subCommand("remind", "Reminds you in the given amount of turns of something!") {
-                integer("turns", "In how many turns to remind you.") {
+            subCommand("remind", "Reminds you in the given amount of turns of something! (0 for your next turn)") {
+                integer("rounds", "In how many rounds to remind you. 0 reminds you in your next turn.") {
                     required = true
                 }
                 string("note", "What to remind you of.") {
                     required = true
                 }
             }
+            subCommand("reminders", "Lists all reminders for this combat.")
         }
     }
 
@@ -133,6 +137,46 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
 
+            "init" ->
+            {
+                val response = event.interaction.deferPublicResponse()
+
+                if (combat.isRunning)
+                {
+                    response.respond {
+                        content = "Combat is already running!"
+                    }
+                    return
+                }
+
+                if (combat.initiativeOrder.map { it.user }.contains(user))
+                {
+                    response.respond {
+                        content = "You are already in combat!"
+                    }
+                    return
+                }
+
+                val result = event.interaction.command.integers["result"]?.toInt()
+                val rollString = event.interaction.command.strings["roll"]
+
+                if (result == null || rollString == null)
+                {
+                    response.respond {
+                        content = "Something went wrong! Contact a moderator."
+                    }
+                    return
+                }
+
+                val rollResult = RollResult(rollString, 20, 1, 4)
+
+                combat.setInitiative(user, result, rollResult)
+
+                response.respond {
+                    content = "Initiative set to $result for ${user.mention}!"
+                }
+            }
+
             "initiative" ->
             {
                 val response = event.interaction.deferPublicResponse()
@@ -192,14 +236,14 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
 
                 val responseSb = StringBuilder()
 
-                if (combat.endTurn()) responseSb.append("Round ${combat.roundTracker}! ")
+                if (combat.nextCombatant()) responseSb.append("Round ${combat.roundTracker}! ")
                 responseSb.append("${combat.combatantToGo!!.user.mention}'s turn!")
 
                 val followup = response.respond {
                     content = responseSb.toString()
                 }
 
-                combat.checkForReminders(combat.combatantToGo!!.user)?.let {
+                combat.checkForReminders()?.let {
                     followup.createPublicFollowup {
                         content = "Reminders:\n$it"
                     }
@@ -218,9 +262,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                     return
                 }
 
-                val removed = combat.combatOrder.removeIf { it.user == user }
-
-                if (removed)
+                if (combat.removeFromCombat(user))
                 {
                     response.respond {
                         content = "${user.mention} got downed!"
@@ -237,11 +279,10 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
             {
                 val response = event.interaction.deferPublicResponse()
 
-                var list = combat.initiativeOrder.map { getMemberName(kord, event.interaction.data.guildId.value, it.user) }
-                if (combat.isRunning) list = combat.combatOrder.map { it.user.effectiveName }
+                val list = if (combat.isRunning) combat.listCombatants() else combat.listParticipants()
 
                 response.respond {
-                    content = "Current participants:\n${list.joinToString("\n")}"
+                    content = "Current participants:\n$list"
                 }
             }
 
@@ -276,13 +317,39 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                     return
                 }
 
-                val turnAmount = event.interaction.command.integers["turns"]!!.toInt()
+                val roundAmount = event.interaction.command.integers["rounds"]!!.toInt()
                 val note = event.interaction.command.strings["note"]!!
 
-                combat.addReminder(turnAmount, user, note)
+                combat.addReminder(roundAmount, user, note)
 
                 response.respond {
-                    content = "Reminding you of '$note' in round ${turnAmount + combat.roundTracker}!"
+                    content = "Reminding you of '$note' in round ${roundAmount + combat.roundTracker}!"
+                }
+            }
+
+            "reminders" ->
+            {
+                val response = event.interaction.deferEphemeralResponse()
+
+                if (!combat.isRunning)
+                {
+                    response.respond {
+                        content = "Combat hasn't started yet!"
+                    }
+                    return
+                }
+
+                val reminders = combat.getAllActiveRemindersForUser(user)
+
+                val sb = StringBuilder()
+
+                for (reminder in reminders)
+                {
+                    sb.append("Round ${reminder.key}, Turn ${reminder.value.first}: ${reminder.value.second}\n")
+                }
+
+                response.respond {
+                    content = sb.toString()
                 }
             }
         }
@@ -290,32 +357,68 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
 
 }
 
-class Combat(val combatOrder: MutableList<Combatant> = mutableListOf(), val trackedReminders: MutableMap<Int, MutableList<Pair<User, String>>> = mutableMapOf())
+/**
+ * @param trackedReminders Map of round number to a map of turn number to a pair of user and note.
+ */
+class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val trackedReminders: MutableMap<Int, MutableMap<Int, MutableList<Pair<User, String>>>> = mutableMapOf())
 {
     var isRunning = false
     var turnTracker = 0
-    var roundTracker = 1
+    var roundTracker = 0
     var combatantToGo: Combatant? = null
     var initiativeOrder: MutableList<Combatant> = mutableListOf()
 
     /**
      * Adds a reminder to this combat for the specified user.
+     * @param roundDelay If 0, reminds the user on their next turn, otherwise in roundDelay rounds.
      */
-    fun addReminder(turnDelay: Int, user: User, note: String)
+    fun addReminder(roundDelay: Int, user: User, note: String)
     {
-        trackedReminders.getOrPut(turnDelay + roundTracker) { mutableListOf() }.add(Pair(user, note))
+        val userTurn = combatOrder.map { it?.user }.indexOf(user)
+
+        if (roundDelay > 0)
+        {
+            trackedReminders.getOrPut(roundDelay + roundTracker) { mutableMapOf() }.getOrPut(turnTracker) { mutableListOf() }.add(Pair(user, note))
+            return
+        }
+
+        if (userTurn > turnTracker) trackedReminders.getOrPut(roundTracker) { mutableMapOf() }.getOrPut(userTurn) { mutableListOf() }.add(Pair(user, note))
+        else trackedReminders.getOrPut(roundTracker + 1) { mutableMapOf() }.getOrPut(userTurn) { mutableListOf() }.add(Pair(user, note))
     }
 
     /**
      * Returns all notes of this user for this round at once.
      */
-    fun checkForReminders(user: User): String?
+    fun checkForReminders(): String?
     {
-        val roundNotes = trackedReminders.getOrElse(roundTracker) { return null }
+        val notes = trackedReminders[roundTracker]?.get(turnTracker) ?: return null
 
-        val userNotes = roundNotes.filter { it.first == user }.ifEmpty { return null }.joinToString("\n") { it.second }
+        val sb = StringBuilder()
 
-        return userNotes
+        for (note in notes)
+        {
+            sb.append("${note.first.mention}: ${note.second}\n")
+        }
+
+        return sb.toString()
+    }
+
+    fun getAllActiveRemindersForUser(user: User): Map<Int, Pair<Int, String>>
+    {
+        val reminders = mutableMapOf<Int, Pair<Int, String>>()
+
+        for ((round, turnMap) in trackedReminders)
+        {
+            for ((turn, notes) in turnMap)
+            {
+                for (note in notes)
+                {
+                    if (((round == roundTracker && turn > turnTracker) || (round > roundTracker)) && note.first == user) reminders[round] = Pair(turn, note.second)
+                }
+            }
+        }
+
+        return reminders
     }
 
     fun resetReminders() = trackedReminders.clear()
@@ -324,12 +427,32 @@ class Combat(val combatOrder: MutableList<Combatant> = mutableListOf(), val trac
     {
         if (!rollResult.roll()) throw IllegalStateException("User ${user.effectiveName} does not have dice to roll!")
 
-        initiativeOrder.add(Combatant(user, rollResult))
+        initiativeOrder.add(Combatant(user, rollResult, alive = true))
+    }
+
+    /**
+     * Returns true when user was found and init was set, false otherwise.
+     */
+    fun setInitiative(user: User, value: Int, rollResult: RollResult): Boolean
+    {
+        rollResult.result = value
+
+        initiativeOrder.find { it.user == user }?.let {
+            it.rollResult.result = value
+            it.rollResult.diceType = rollResult.diceType
+            it.rollResult.amount = rollResult.amount
+            it.rollResult.modifier = rollResult.modifier
+            return true
+        }
+
+        initiativeOrder.add(Combatant(user, rollResult, alive = true))
+
+        return false
     }
 
     fun prepareList()
     {
-        val groupedOrder = initiativeOrder.groupBy { it.rollResult.getResult() }.toList().sortedByDescending { it.first }.toMutableList()
+        val groupedOrder = initiativeOrder.groupBy { it.rollResult.result }.toList().sortedByDescending { it.first }.toMutableList()
         while (groupedOrder.isNotEmpty())
         {
             val (_, currentCombatants) = groupedOrder.removeFirst()
@@ -354,8 +477,8 @@ class Combat(val combatOrder: MutableList<Combatant> = mutableListOf(), val trac
         val winners = combatOrder.toList()
         combatOrder.clear()
         initiativeOrder.clear()
-        roundTracker = 1
-        return winners
+        roundTracker = 0
+        return winners.filterNotNull()
     }
 
     /**
@@ -364,38 +487,114 @@ class Combat(val combatOrder: MutableList<Combatant> = mutableListOf(), val trac
     fun delayAfter(targetUser: User): Boolean
     {
         combatantToGo?.let { ctg ->
-            val ownIndex = combatOrder.map { it.user }.indexOf(ctg.user)
-            val indexToInsertAt = combatOrder.map { it.user }.indexOf(targetUser)
-            if (ownIndex >= indexToInsertAt) return false
-            if (!combatOrder.remove(ctg)) return false
-            combatOrder.add(indexToInsertAt, ctg)
+            val ownIndex = combatOrder.map { it?.user }.indexOf(ctg.user)
+            val indexToInsertAfter = combatOrder.map { it?.user }.indexOf(targetUser)
 
-            combatantToGo = combatOrder[turnTracker]
+            val targetCombatant = combatOrder.firstOrNull { it?.user == targetUser && it.alive }
+
+            if (ownIndex == -1 || indexToInsertAfter == -1) return false
+            if (ownIndex >= indexToInsertAfter) return false
+            if (targetCombatant == null) return false
+
+            val originalIndex = combatOrder.indexOf(ctg)
+            combatOrder[originalIndex] = null
+            combatOrder.add(indexToInsertAfter + 1, ctg)
+            nextCombatant()
             return true
         }
         return false
     }
 
     /**
-     * Returns true, if this also was the round end, false otherwise.
+     * Returns true, if user was found and removed from combat, false otherwise.
      */
-    fun endTurn(): Boolean
+    fun removeFromCombat(user: User): Boolean
     {
-        turnTracker++
-        if (turnTracker >= combatOrder.size)
-        {
-            endRound()
-            return true
-        }
-        combatantToGo = combatOrder[turnTracker]
-        return false
+        val matches = combatOrder.filterNotNull().filter { it.user == user && it.alive }
+
+        if (matches.isEmpty()) return false
+
+        matches.forEach { it.alive = false }
+
+        return true
     }
 
-    fun endRound()
+    /**
+     * Returns true, if this is the last turn in the round.
+     */
+    fun isLastTurnInRound(): Boolean
     {
-        roundTracker++
-        turnTracker = 0
+        if (turnTracker == combatOrder.size - 1) return true
+
+        for (i in turnTracker + 1 until combatOrder.size)
+        {
+            val nextCombatant = combatOrder[i]
+            if (nextCombatant != null && nextCombatant.alive) return false
+        }
+
+        return true
+    }
+
+    /**
+     * Returns true, if round changed.
+     */
+    fun nextCombatant(): Boolean
+    {
+        var isNextRound = false
+
+        if (isLastTurnInRound())
+        {
+            val remindersToPush = trackedReminders[roundTracker]?.filterKeys { it > turnTracker } ?: emptyMap()
+
+            for (reminder in remindersToPush)
+            {
+                trackedReminders[roundTracker]?.remove(reminder.key)
+                trackedReminders[roundTracker + 1]?.getOrPut(0) { mutableListOf() }?.addAll(reminder.value)
+            }
+
+            roundTracker++
+            turnTracker = -1
+            isNextRound = true
+        }
+
+        turnTracker++
+
+        // While the cursor is on null or dead, accumulate reminders on next position.
+        while (combatOrder[turnTracker]?.let { !it.alive } ?: true)
+        {
+            trackedReminders[roundTracker]?.remove(turnTracker)?.let {
+                trackedReminders[roundTracker]?.getOrPut(++turnTracker) { mutableListOf() }?.addAll(it)
+            }
+        }
+
         combatantToGo = combatOrder[turnTracker]
+        return isNextRound
+    }
+
+    fun listParticipants(): String
+    {
+        val sb = StringBuilder()
+
+        sb.append("Ties will be resolved after combat start!".italic()).append("\n")
+
+        for (combatant in initiativeOrder.sortedByDescending { it.rollResult.result })
+        {
+            sb.append("${combatant.user.effectiveName} (${combatant.rollResult.result})\n")
+        }
+
+        return sb.toString()
+    }
+
+    fun listCombatants(): String
+    {
+        val sb = StringBuilder()
+
+        for (combatant in combatOrder.filterNotNull())
+        {
+            sb.append("${combatant.user.effectiveName} (${combatant.rollResult.result})".let { if (combatant.alive) it else it.stricken() }).append("\n")
+        }
+
+        return sb.toString()
     }
 
     /**
@@ -412,7 +611,7 @@ class Combat(val combatOrder: MutableList<Combatant> = mutableListOf(), val trac
             newCombatants.add(combatant)
         }
 
-        val groupedCombatants = newCombatants.groupBy { it.rollResult.getResult() }.toList().sortedByDescending { it.first }
+        val groupedCombatants = newCombatants.groupBy { it.rollResult.result }.toList().sortedByDescending { it.first }
         val finalCombatants = mutableListOf<Combatant>()
 
         for (group in groupedCombatants)
@@ -425,4 +624,4 @@ class Combat(val combatOrder: MutableList<Combatant> = mutableListOf(), val trac
     }
 }
 
-data class Combatant(val user: User, val rollResult: RollResult)
+data class Combatant(val user: User, val rollResult: RollResult, var alive: Boolean)

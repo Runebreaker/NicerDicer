@@ -1,10 +1,17 @@
 package de.nicerdicer.util
 
-class RollResult(val diceType: Int, val amount: Int, val modifier: Int)
+class RollResult(var diceType: Int, var amount: Int, var modifier: Int)
 {
     private val diceRolls: MutableList<Int> = mutableListOf()
-    private var result: Int = 0
+    var result: Int = 0
     private var isCrit: Boolean = false
+
+    constructor(rollString: String, defaultType: Int, defaultAmount: Int, defaultModifier: Int) : this(0, 0, 0)
+    {
+        this.amount = Regex("\\d+[dD]").find(rollString)?.value?.dropLast(1)?.toInt() ?: defaultAmount
+        this.diceType = Regex("[dD]\\d+").find(rollString)?.value?.drop(1)?.toInt() ?: defaultType
+        this.modifier = Regex("[+-]\\d+").find(rollString)?.value?.toInt() ?: defaultModifier
+    }
 
     /**
      * Rolls the dice new and sets the result and isCrit. Returns true, if successful or false otherwise.
@@ -26,8 +33,6 @@ class RollResult(val diceType: Int, val amount: Int, val modifier: Int)
     }
 
     fun getDiceRolls(): List<Int> = diceRolls.toList()
-
-    fun getResult(): Int = result
 
     fun isCrit() = isCrit
 
