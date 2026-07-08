@@ -1,5 +1,6 @@
 package de.nicerdicer.functions
 
+import de.nicerdicer.util.WoundEffect
 import de.nicerdicer.util.WoundLocation
 import de.nicerdicer.util.WoundType
 import de.nicerdicer.util.Wounds
@@ -85,10 +86,19 @@ object WoundFunction : FunctionBase("wounds", "Everything concerning Wounds.")
             }
         }
 
-        val wounds = wounds.roll(c, m, l, type, location)
+        val rolledWounds = wounds.roll(c, m, l, type, location)
+        val demolishedWounds = mutableListOf<WoundEffect>()
         val embedBuilders = mutableListOf<EmbedBuilder>()
 
-        for (wound in wounds)
+        for (wound in rolledWounds.toList())
+        {
+            when (wound.name.lowercase())
+            {
+                "demolished" -> demolishedWounds.addAll(wounds.getDemolished(wound.location))
+            }
+        }
+
+        for (wound in rolledWounds)
         {
             val newEmbed = EmbedBuilder()
             val footer = EmbedBuilder.Footer()
@@ -101,6 +111,21 @@ object WoundFunction : FunctionBase("wounds", "Everything concerning Wounds.")
             newEmbed.color = type.color
             newEmbed.footer = footer
 
+            embedBuilders.add(newEmbed)
+        }
+
+        for (wound in demolishedWounds)
+        {
+            val newEmbed = EmbedBuilder()
+            val footer = EmbedBuilder.Footer()
+            footer.text = "Location: ${wound.location.toString().lowercase().replaceFirstChar { it.uppercase() }} - Severity: ${
+                wound.severity.toString().lowercase().replaceFirstChar { it.uppercase() }
+            } - From Demolished"
+
+            newEmbed.title = wound.name
+            newEmbed.description = wound.description
+            newEmbed.color = type.color
+            newEmbed.footer = footer
             embedBuilders.add(newEmbed)
         }
 

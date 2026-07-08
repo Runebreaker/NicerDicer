@@ -1,6 +1,7 @@
 package de.nicerdicer.util
 
 import de.nicerdicer.db.Database
+import de.nicerdicer.db.WoundEntry
 import dev.kord.common.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -24,8 +25,6 @@ class Wounds
                 return emptyList()
             }
 
-            val actualLocation = location ?: WoundLocation.roll()
-
             data class RowParsed(val name: String, val desc: String, val severity: WoundSeverity, val location: WoundLocation)
 
             val parsedRows = allRows.mapNotNull { row ->
@@ -45,44 +44,47 @@ class Wounds
                 }
             }
 
-            fun candidatesFor(sev: WoundSeverity): List<RowParsed> =
-                parsedRows.filter { it.severity == sev && (it.location == actualLocation || it.location == WoundLocation.ANY) }
+            fun candidatesFor(sev: WoundSeverity, location: WoundLocation): List<RowParsed> =
+                parsedRows.filter { it.severity == sev && (it.location == location || it.location == WoundLocation.ANY) }
 
             repeat(c) {
-                val candidate = candidatesFor(WoundSeverity.CRITICAL)
+                val chosenLocation = location ?: WoundLocation.roll()
+                val candidate = candidatesFor(WoundSeverity.CRITICAL, chosenLocation)
                 if (candidate.isNotEmpty())
                 {
                     val chosen = candidate.first()
-                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, actualLocation, WoundSeverity.CRITICAL))
+                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, chosenLocation, WoundSeverity.CRITICAL))
                 } else
                 {
-                    println("Wounds.roll: no critical entries for type=$type location=$actualLocation")
+                    println("Wounds.roll: no critical entries for type=$type location=$chosenLocation")
                 }
             }
 
             repeat(m) {
-                val candidate = candidatesFor(WoundSeverity.MODERATE)
+                val chosenLocation = location ?: WoundLocation.roll()
+                val candidate = candidatesFor(WoundSeverity.MODERATE, chosenLocation)
                 if (candidate.isNotEmpty())
                 {
                     val idx = NicerRandom.random.nextInt(0, candidate.size)
                     val chosen = candidate[idx]
-                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, actualLocation, WoundSeverity.MODERATE))
+                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, chosenLocation, WoundSeverity.MODERATE))
                 } else
                 {
-                    println("Wounds.roll: no moderate entries for type=$type location=$actualLocation")
+                    println("Wounds.roll: no moderate entries for type=$type location=$chosenLocation")
                 }
             }
 
             repeat(l) {
-                val candidate = candidatesFor(WoundSeverity.LESSER)
+                val chosenLocation = location ?: WoundLocation.roll()
+                val candidate = candidatesFor(WoundSeverity.LESSER, chosenLocation)
                 if (candidate.isNotEmpty())
                 {
                     val idx = NicerRandom.random.nextInt(0, candidate.size)
                     val chosen = candidate[idx]
-                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, actualLocation, WoundSeverity.LESSER))
+                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, chosenLocation, WoundSeverity.LESSER))
                 } else
                 {
-                    println("Wounds.roll: no lesser entries for type=$type location=$actualLocation")
+                    println("Wounds.roll: no lesser entries for type=$type location=$chosenLocation")
                 }
             }
         } catch (e: Exception)
@@ -91,6 +93,13 @@ class Wounds
             e.printStackTrace()
         }
         return woundEffects
+    }
+
+    fun getDemolished(location: WoundLocation): List<WoundEffect>
+    {
+        val wounds = Database.getWounds()
+            .filter { parseWoundLocation(it.woundLocation) == location && parseWoundType(it.woundType) == WoundType.BASH && parseWoundSeverity(it.woundSeverity) == WoundSeverity.MODERATE }
+        return wounds.map { WoundEffect(it.woundName, it.woundDescription, location, WoundSeverity.MODERATE) }
     }
 
     //region Parsers
