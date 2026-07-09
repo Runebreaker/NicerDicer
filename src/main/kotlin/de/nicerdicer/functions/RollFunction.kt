@@ -16,6 +16,9 @@ object RollFunction : FunctionBase("roll", "Rolls the dice!") {
             integer(name = "roll_modifier", "Value to add to the result; e.g. 4 or -3") {
                 required = false
             }
+            integer(name = "roll_times", "How many times to repeat this roll; maximum 20") {
+                required = false
+            }
             integer("dice_type", "What type of die to use; e.g. d6") {
                 required = false
                 choice("D2", 2)
@@ -38,26 +41,34 @@ object RollFunction : FunctionBase("roll", "Rolls the dice!") {
         val diceType = event.interaction.command.integers["dice_type"]?.toInt() ?: 20
         val diceAmount = event.interaction.command.integers["roll_amount"]?.toInt() ?: 3
         val modifier = event.interaction.command.integers["roll_modifier"]?.toInt() ?: 4
+        val rollTimes = event.interaction.command.integers["roll_times"] ?: 1
 
-        val results = RollResult(diceType, diceAmount, modifier)
-
-        if (!results.roll())
+        if (rollTimes !in 1..20)
         {
-            response.respond {
-                content = "Dice type and amount have to be greater than 0!"
-            }
+            response.respond { content = "Roll times must be between 1 and 20." }
             return
         }
 
         val sb = StringBuilder()
-        sb.append(results.getRollString())
+        repeat(rollTimes.toInt())
+        {
+            val result = RollResult(diceType, diceAmount, modifier)
+            if (!result.roll())
+            {
+                response.respond { content = "Dice type and amount have to be greater than 0!" }
+                return
+            }
+
+            if (rollTimes > 1) sb.append("Roll ${it + 1}: ")
+            sb.append(result.getRollString()).append("\n")
+        }
 
         event.interaction.command.strings["note"]?.let {
-            sb.append("    /// $it")
+            sb.append("/// $it")
         }
 
         response.respond {
-            content = sb.toString()
+            content = sb.toString().trimEnd()
         }
     }
 }
