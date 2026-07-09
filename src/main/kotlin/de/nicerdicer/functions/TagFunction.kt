@@ -24,8 +24,8 @@ object TagFunction : FunctionBase("tag", "Show given tag.")
                 string("content", "Tag content") { required = false }
             }
             subCommand("edit", "Edit an existing tag (owner only)") {
-                string("name", "Tag name") { required = true }
-                string("content", "New tag content") { required = true }
+                string("name", "Tag name") { required = false }
+                string("content", "New tag content") { required = false }
             }
             subCommand("delete", "Delete a tag (owner only)") {
                 string("name", "Tag name") { required = true }
@@ -81,15 +81,38 @@ object TagFunction : FunctionBase("tag", "Show given tag.")
 
                 "edit" ->
                 {
-                    val response = event.interaction.deferPublicResponse()
                     val name = (event.interaction.command.strings["name"] ?: "").trim()
                     val responseContent = event.interaction.command.strings["content"] ?: ""
+                    val ownerId = event.interaction.user.id.toString()
                     if (name.isBlank() || responseContent.isBlank())
                     {
-                        response.respond { content = "Usage: /tag edit name:<name> content:<text>" }
+                        val existingTag = name.takeIf { it.isNotBlank() }?.let { Database.getTag(it) }
+                        if (name.isNotBlank() && (existingTag == null || existingTag.owner != ownerId))
+                        {
+                            event.interaction.respondEphemeral { content = "Failed to update tag '$name' - it might not exist or you might not be the owner." }
+                            return
+                        }
+                        val modalName = existingTag?.name ?: name
+                        val modalContent = existingTag?.content ?: responseContent
+                        event.interaction.modal("Edit Tag", "edit_tag") {
+                            label("Tag name") {
+                                textInput(TextInputStyle.Short, "tag_name") {
+                                    required = true
+                                    placeholder = "Insert your tag name here!"
+                                    if (modalName.isNotEmpty()) value = modalName
+                                }
+                            }
+                            label("Tag content") {
+                                textInput(TextInputStyle.Paragraph, "tag_content") {
+                                    required = true
+                                    placeholder = "Insert your new tag content here!"
+                                    if (modalContent.isNotEmpty()) value = modalContent
+                                }
+                            }
+                        }
                         return
                     }
-                    val ownerId = event.interaction.user.id.toString()
+                    val response = event.interaction.deferPublicResponse()
                     val ok = Database.updateTag(name, ownerId, responseContent)
                     if (ok) response.respond { content = "Tag '$name' updated." }
                     else response.respond { content = "Failed to update tag '$name' — it might not exist or you might not be the owner." }
@@ -163,6 +186,21 @@ object TagFunction : FunctionBase("tag", "Show given tag.")
                 val ok = Database.createTag(name, ownerId, tagContent)
                 if (ok) event.interaction.respondEphemeral { content = "Tag '$name' created." }
                 else event.interaction.respondEphemeral { content = "Failed to create tag '$name' — it may already exist (case-insensitive) or an error occurred." }
+            }
+
+            "edit_tag" ->
+            {
+                val name = event.interaction.textInputs["tag_name"]?.value?.trim() ?: ""
+                val tagContent = event.interaction.textInputs["tag_content"]?.value ?: ""
+                if (name.isBlank() || tagContent.isBlank())
+                {
+                    event.interaction.respondEphemeral { content = "Tag name and content cannot be empty." }
+                    return
+                }
+                val ownerId = event.interaction.user.id.toString()
+                val ok = Database.updateTag(name, ownerId, tagContent)
+                if (ok) event.interaction.respondEphemeral { content = "Tag '$name' updated." }
+                else event.interaction.respondEphemeral { content = "Failed to update tag '$name' - it might not exist or you might not be the owner." }
             }
         }
     }
