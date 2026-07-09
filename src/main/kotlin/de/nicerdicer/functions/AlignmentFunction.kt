@@ -2,17 +2,24 @@ package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
 import de.nicerdicer.util.bold
+import dev.kord.common.entity.Snowflake
 import dev.kord.core.Kord
+import dev.kord.core.behavior.createRole
+import dev.kord.core.behavior.edit
 import dev.kord.core.behavior.interaction.respondPublic
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 import dev.kord.rest.builder.interaction.subCommand
 import dev.kord.rest.builder.interaction.string
+import kotlinx.coroutines.flow.toList
 
 object AlignmentFunction : FunctionBase("alignment", "Everything to do with alignments.")
 {
     val validOrders = listOf("Lawful", "Neutral", "Chaotic")
     val validIntents = listOf("Good", "Neutral", "Evil")
+    private val alignmentRoleNames = validOrders.flatMap { order ->
+        validIntents.map { intent -> alignmentRoleName(order, intent) }
+    }.toSet()
 
     override suspend fun prepare(kord: Kord)
     {
@@ -74,7 +81,33 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                     val ok = Database.setAlignment(guildIdVal, userId, order, intent)
                     if (ok)
                     {
-                        response.respond { content = "Your alignment has been set to ${"$order $intent".bold()}" }
+                        val roleName = alignmentRoleName(order, intent)
+                        try
+                        {
+                            val guild = event.kord.getGuild(Snowflake(guildIdVal))
+                            val member = guild.getMember(event.interaction.user.id)
+                            val guildRoles = guild.roles.toList()
+                            val alignmentRole = guildRoles.firstOrNull { it.name.equals(roleName, ignoreCase = true) }
+                                ?: guild.createRole { name = roleName }
+                            val existingAlignmentRoleIds = guildRoles
+                                .filter { role -> alignmentRoleNames.any { it.equals(role.name, ignoreCase = true) } }
+                                .map { it.id }
+                                .toSet()
+
+                            member.edit {
+                                roles = (member.roleIds - existingAlignmentRoleIds + alignmentRole.id).toMutableSet()
+                            }
+                        } catch (e: Exception)
+                        {
+                            println("AlignmentFunction.execute: alignment role update failed for user $userId in guild $guildIdVal: ${e.message}")
+                            e.printStackTrace()
+                            response.respond {
+                                content = "Your alignment has been set to ${roleName.bold()}, but the Discord role could not be updated. Check the bot's Manage Roles permission and role hierarchy, then run /alignment set again."
+                            }
+                            return
+                        }
+
+                        response.respond { content = "Your alignment has been set to ${roleName.bold()}" }
                     }
                     else
                     {
@@ -109,4 +142,8 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
             response.respond { content = "An internal error occurred while handling the alignment command." }
         }
     }
+
+    /** Maps stored alignment axes to the Discord role name used to identify a player's alignment. */
+    internal fun alignmentRoleName(order: String, intent: String): String =
+        if (order == "Neutral" && intent == "Neutral") "True Neutral" else "$order $intent"
 }
