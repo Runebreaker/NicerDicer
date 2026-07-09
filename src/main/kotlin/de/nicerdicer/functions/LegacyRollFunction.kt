@@ -22,7 +22,7 @@ object LegacyRollFunction : FunctionBase("r", "Roll function via a string.")
         val response = event.interaction.deferPublicResponse()
         val rs = event.interaction.command.strings["roll_string"] ?: "3d20+4"
 
-        val result = RollResult(rs, 20, 1, 0)
+        val result = RollResult(rs, 20, 3, 4, parseLegacyShorthand = true)
 
         if (!result.roll())
         {

@@ -6,11 +6,34 @@ class RollResult(var diceType: Int, var amount: Int, var modifier: Int)
     var result: Int = 0
     private var isCrit: Boolean = false
 
-    constructor(rollString: String, defaultType: Int, defaultAmount: Int, defaultModifier: Int) : this(0, 0, 0)
+    constructor(
+        rollString: String,
+        defaultType: Int,
+        defaultAmount: Int,
+        defaultModifier: Int,
+        parseLegacyShorthand: Boolean = false,
+    ) : this(0, 0, 0)
     {
-        this.amount = Regex("\\d+[dD]").find(rollString)?.value?.dropLast(1)?.toInt() ?: defaultAmount
+        this.amount = Regex("\\d+[dD]").find(rollString)?.value?.dropLast(1)?.toInt()
+            ?: (if (parseLegacyShorthand) Regex("^\\d+(?=[+-])|^\\d+$").find(rollString)?.value?.toInt() else null)
+            ?: defaultAmount
         this.diceType = Regex("[dD]\\d+").find(rollString)?.value?.drop(1)?.toInt() ?: defaultType
-        this.modifier = Regex("[+-]\\d+").find(rollString)?.value?.toInt() ?: defaultModifier
+        this.modifier = if (parseLegacyShorthand)
+        {
+            Regex("([+-]{1,2})(\\d+)$").find(rollString)?.let {
+                val signs = it.groupValues[1]
+                val value = it.groupValues[2].toInt()
+                when (signs)
+                {
+                    "++" -> defaultModifier + value
+                    "--" -> defaultModifier - value
+                    else -> "$signs$value".toInt()
+                }
+            } ?: defaultModifier
+        } else
+        {
+            Regex("[+-]\\d+").find(rollString)?.value?.toInt() ?: defaultModifier
+        }
     }
 
     /**
