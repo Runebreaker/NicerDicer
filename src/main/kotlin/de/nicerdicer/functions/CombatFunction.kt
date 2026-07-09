@@ -553,18 +553,17 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
             }
 
             roundTracker++
-            turnTracker = -1
+            turnTracker = 0
             isNextRound = true
         }
-
-        turnTracker++
 
         // While the cursor is on null or dead, accumulate reminders on next position.
         while (combatOrder[turnTracker]?.let { !it.alive } ?: true)
         {
             trackedReminders[roundTracker]?.remove(turnTracker)?.let {
-                trackedReminders[roundTracker]?.getOrPut(++turnTracker) { mutableListOf() }?.addAll(it)
+                trackedReminders[roundTracker]?.getOrPut(turnTracker) { mutableListOf() }?.addAll(it)
             }
+            turnTracker++
         }
 
         combatantToGo = combatOrder[turnTracker]
