@@ -474,11 +474,11 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
     fun finishCombat(): List<Combatant>
     {
         isRunning = false
-        val winners = combatOrder.toList()
+        val winners = combatOrder.filterNotNull().filter { it.alive }.toList()
         combatOrder.clear()
         initiativeOrder.clear()
         roundTracker = 0
-        return winners.filterNotNull()
+        return winners
     }
 
     /**
