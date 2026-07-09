@@ -1,0 +1,36 @@
+package de.nicerdicer.functions
+
+import de.nicerdicer.util.RollResult
+import dev.kord.core.Kord
+import dev.kord.core.behavior.interaction.response.respond
+import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.string
+
+object ConcFunction : FunctionBase("c", "Roll a concentration check.")
+{
+    /** Registers `/c` so concentration checks can use their dedicated 1d10+5 defaults. */
+    override suspend fun prepare(kord: Kord)
+    {
+        kord.createGlobalChatInputCommand(name, description) {
+            string("roll_string", "Optional modifier, such as +1, ++1, or --1") {
+                required = false
+            }
+        }
+    }
+
+    /** Executes one concentration check with the same shorthand modifiers as the legacy roll command. */
+    override suspend fun execute(event: ChatInputCommandInteractionCreateEvent)
+    {
+        val response = event.interaction.deferPublicResponse()
+        val rollString = event.interaction.command.strings["roll_string"].orEmpty()
+        val result = RollResult(rollString, 10, 1, 5, parseLegacyShorthand = true)
+
+        if (!result.roll())
+        {
+            response.respond { content = "Dice type and amount have to be greater than 0!" }
+            return
+        }
+
+        response.respond { content = result.getRollString() }
+    }
+}
