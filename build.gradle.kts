@@ -20,7 +20,7 @@ dependencies {
     implementation("org.xerial:sqlite-jdbc:3.53.2.0")
     implementation("io.ktor:ktor-client-cio:3.5.1")
 
-    testImplementation(kotlin("test-junit5"))
+    testImplementation(kotlin("test"))
 }
 
 tasks.test {
