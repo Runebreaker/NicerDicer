@@ -563,8 +563,9 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
         while (combatOrder[turnTracker]?.let { !it.alive } ?: true)
         {
             trackedReminders[roundTracker]?.remove(turnTracker)?.let {
-                trackedReminders[roundTracker]?.getOrPut(++turnTracker) { mutableListOf() }?.addAll(it)
+                trackedReminders[roundTracker]?.getOrPut(turnTracker + 1) { mutableListOf() }?.addAll(it)
             }
+            turnTracker++
         }
 
         combatantToGo = combatOrder[turnTracker]
