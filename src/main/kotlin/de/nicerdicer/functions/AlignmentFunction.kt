@@ -1,12 +1,15 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
+import de.nicerdicer.db.AlignmentEntry
+import de.nicerdicer.util.KordUtil
 import de.nicerdicer.util.bold
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.Kord
 import dev.kord.core.behavior.createRole
 import dev.kord.core.behavior.edit
 import dev.kord.core.behavior.interaction.respondPublic
+import dev.kord.core.behavior.interaction.response.createPublicFollowup
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 import dev.kord.rest.builder.interaction.subCommand
@@ -36,7 +39,12 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                     }
                 }
             }
-            subCommand("show", "Show your alignment") { }
+            subCommand("chart", "Show the alignment chart and player counts") { }
+            subCommand("show", "Show an alignment, player, or alignment group") {
+                string("target", "Good, Evil, an alignment, or a player name") {
+                    required = false
+                }
+            }
         }
         
         Database.init()
@@ -123,19 +131,72 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                         response.respond { content = "Failed to set alignment." }
                     }
                 }
+
+                "chart" ->
+                {
+                    response.respond { content = formatAlignmentChart(Database.getAlignments(guildIdVal)) }
+                }
                 
                 "show" ->
                 {
                     val userId = event.interaction.user.id.toString()
-                    val alignment = Database.getAlignment(guildIdVal, userId)
-                    if (alignment != null)
+                    val target = event.interaction.command.strings["target"]?.trim().orEmpty()
+                    if (target.isBlank())
                     {
-                        val alignmentStr = "${alignment.alignmentOrder} ${alignment.intent}"
-                        response.respond { content = "Your alignment is ${"$alignmentStr".bold()}" }
+                        val alignment = Database.getAlignment(guildIdVal, userId)
+                        if (alignment != null)
+                        {
+                            response.respond { content = "Your alignment is ${alignmentRoleName(alignment.alignmentOrder, alignment.intent).bold()}" }
+                        }
+                        else
+                        {
+                            response.respond { content = "You have not set an alignment yet. Use /alignment set to set your alignment." }
+                        }
+                        return
                     }
-                    else
+
+                    val allAlignments = Database.getAlignments(guildIdVal)
+                    val isAlignmentTarget = target.equals("good", ignoreCase = true)
+                        || target.equals("evil", ignoreCase = true)
+                        || alignmentRoleNames.any { it.equals(target, ignoreCase = true) }
+                    val matches = if (isAlignmentTarget)
                     {
-                        response.respond { content = "You have not set an alignment yet. Use /alignment set to set your alignment." }
+                        filterAlignments(allAlignments, target)
+                    } else
+                    {
+                        val playerMatches = mutableListOf<AlignmentEntry>()
+                        for (alignment in allAlignments)
+                        {
+                            val memberName = KordUtil.getMemberName(event.kord, Snowflake(guildIdVal), Snowflake(alignment.userId))
+                            if (memberName.equals(target, ignoreCase = true)) playerMatches.add(alignment)
+                        }
+                        playerMatches
+                    }
+
+                    if (matches.isEmpty())
+                    {
+                        response.respond { content = "No players match '$target'." }
+                        return
+                    }
+
+                    val resultPages = mutableListOf<String>()
+                    var resultPage = StringBuilder()
+                    for (alignment in matches)
+                    {
+                        val memberName = KordUtil.getMemberName(event.kord, Snowflake(guildIdVal), Snowflake(alignment.userId))
+                        val line = "$memberName: ${alignmentRoleName(alignment.alignmentOrder, alignment.intent)}"
+                        if (resultPage.isNotEmpty() && resultPage.length + line.length + 1 > 2_000)
+                        {
+                            resultPages.add(resultPage.toString())
+                            resultPage = StringBuilder()
+                        }
+                        resultPage.append(line).append("\n")
+                    }
+                    resultPages.add(resultPage.toString().trimEnd())
+
+                    val followup = response.respond { content = resultPages.first() }
+                    resultPages.drop(1).forEach { page ->
+                        followup.createPublicFollowup { content = page }
                     }
                 }
                 
@@ -155,4 +216,37 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
     /** Maps stored alignment axes to the player-facing alignment name. */
     internal fun alignmentName(order: String, intent: String): String =
         if (order == "Neutral" && intent == "Neutral") "True Neutral" else "$order $intent"
+
+    /** Formats current alignment counts as a three-by-three D&D alignment chart for Discord. */
+    internal fun formatAlignmentChart(alignments: List<AlignmentEntry>): String
+    {
+        val counts = alignments.groupingBy { alignmentRoleName(it.alignmentOrder, it.intent) }.eachCount()
+        val rows = listOf(
+            listOf("Lawful" to "Good", "Neutral" to "Good", "Chaotic" to "Good"),
+            listOf("Lawful" to "Neutral", "Neutral" to "Neutral", "Chaotic" to "Neutral"),
+            listOf("Lawful" to "Evil", "Neutral" to "Evil", "Chaotic" to "Evil"),
+        )
+
+        return rows.joinToString(prefix = "```\n", postfix = "\n```", separator = "\n") { row ->
+            row.joinToString(" | ") { (order, intent) ->
+                val roleName = alignmentRoleName(order, intent)
+                "$roleName: ${counts[roleName] ?: 0}"
+            }
+        }
+    }
+
+    /** Selects the alignments included by the Good, Evil, or exact-alignment `/alignment show` target. */
+    internal fun filterAlignments(alignments: List<AlignmentEntry>, target: String): List<AlignmentEntry> =
+        when
+        {
+            target.equals("good", ignoreCase = true) -> alignments.filter {
+                it.intent == "Good" || (it.alignmentOrder == "Lawful" && it.intent == "Neutral")
+            }
+            target.equals("evil", ignoreCase = true) -> alignments.filter {
+                it.intent == "Evil" || (it.alignmentOrder == "Chaotic" && it.intent == "Neutral")
+            }
+            else -> alignments.filter {
+                alignmentRoleName(it.alignmentOrder, it.intent).equals(target, ignoreCase = true)
+            }
+        }
 }

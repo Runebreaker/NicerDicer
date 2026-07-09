@@ -1326,6 +1326,39 @@ object Database
         return null
     }
 
+    /** Lists all saved alignments in a guild for chart counts and alignment-based player views. */
+    fun getAlignments(guildId: String): List<AlignmentEntry>
+    {
+        init()
+        val alignments = mutableListOf<AlignmentEntry>()
+        try
+        {
+            connect().use { conn ->
+                conn.prepareStatement("SELECT guild, userId, alignment_order, intent FROM alignment WHERE guild = ?").use { ps ->
+                    ps.setString(1, guildId)
+                    ps.executeQuery().use { rs ->
+                        while (rs.next())
+                        {
+                            alignments.add(
+                                AlignmentEntry(
+                                    guildId = rs.getString("guild"),
+                                    userId = rs.getString("userId"),
+                                    alignmentOrder = rs.getString("alignment_order"),
+                                    intent = rs.getString("intent"),
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception)
+        {
+            println("Database.getAlignments failed for guild '$guildId': ${e.message}")
+            e.printStackTrace()
+        }
+        return alignments
+    }
+
     //endregion
 
     //region Permission Helpers
