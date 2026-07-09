@@ -27,7 +27,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
             subCommand("start", "Starts combat!")
             subCommand("finish", "Finish combat!")
             subCommand("leave", "Leave combat.")
-            subCommand("init", "Sets initiative and roll type.") {
+            subCommand("setInit", "Sets initiative and roll type.") {
                 integer("result", "Initiative result.") { required = true }
                 string("roll", "String for what roll is used; e.g. 3d20+4") { required = true }
             }
@@ -39,7 +39,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                     required = false
                 }
             }
-            subCommand("end", "Ends your turn.")
+            subCommand("next", "Ends your turn.")
             subCommand("down", "Removes you from combat.")
             subCommand("list", "Lists everyone in combat.")
             subCommand("delay", "Delays your turn until after the given person's") {
@@ -137,7 +137,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
 
-            "init" ->
+            "setInit" ->
             {
                 val response = event.interaction.deferPublicResponse()
 
@@ -214,7 +214,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
 
-            "end" ->
+            "next" ->
             {
                 val response = event.interaction.deferPublicResponse()
 
