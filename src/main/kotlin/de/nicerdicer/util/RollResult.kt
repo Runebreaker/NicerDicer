@@ -20,6 +20,7 @@ class RollResult(var diceType: Int, var amount: Int, var modifier: Int)
     {
         if (diceType <= 0 || amount <= 0) return false
 
+        isCrit = false
         diceRolls.clear()
         repeat(amount)
         {
