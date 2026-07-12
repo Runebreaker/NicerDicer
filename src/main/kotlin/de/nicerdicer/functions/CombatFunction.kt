@@ -26,7 +26,6 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
         kord.createGlobalChatInputCommand(name, description) {
             subCommand("start", "Starts combat!")
             subCommand("finish", "Finish combat!")
-            subCommand("leave", "Leave combat.")
             subCommand("init", "Sets initiative and roll type.") {
                 integer("result", "Initiative result.") { required = true }
                 string("roll", "String for what roll is used; e.g. 3d20+4") { required = true }
@@ -40,7 +39,14 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
             subCommand("end", "Ends your turn.")
+            subCommand("leave", "Leave combat.")
             subCommand("down", "Removes you from combat.")
+            subCommand("kick", "Kicks a user from combat") {
+                user("user", "User to kick from combat.") {
+                    required = true
+                    autocomplete = true
+                }
+            }
             subCommand("list", "Lists everyone in combat.")
             subCommand("delay", "Delays your turn until after the given person's") {
                 user("user", "User to delay your turn after.") {
@@ -115,25 +121,6 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
 
                 response.respond {
                     content = "Combat over! Winners are: ${winners.joinToString(", ") { winner -> winner.user.mention }}"
-                }
-            }
-
-            "leave" ->
-            {
-                val response = event.interaction.deferPublicResponse()
-
-                val removed = combat.initiativeOrder.removeIf { it.user == user }
-
-                if (removed)
-                {
-                    response.respond {
-                        content = "${user.mention} left the combat!"
-                    }
-                    return
-                }
-
-                response.respond {
-                    content = "You are not in combat!"
                 }
             }
 
@@ -250,14 +237,14 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
 
-            "down" ->
+            "leave", "down" ->
             {
                 val response = event.interaction.deferPublicResponse()
 
-                if (!combat.isRunning)
+                if (!combat.isRunning && combat.initiativeOrder.removeIf { it.user == user })
                 {
                     response.respond {
-                        content = "Combat hasn't started yet!"
+                        content = "${user.mention} left combat!"
                     }
                     return
                 }
@@ -272,6 +259,29 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
 
                 response.respond {
                     content = "You are not in combat!"
+                }
+            }
+
+            "kick" ->
+            {
+                val response = event.interaction.deferPublicResponse()
+
+                val targetUser = event.interaction.command.users["user"]!!
+
+                if (!combat.isRunning && combat.initiativeOrder.removeIf { it.user == targetUser })
+                {
+                    response.respond {
+                        content = "${targetUser.mention} was kicked from initiative!"
+                    }
+                    return
+                }
+
+                if (combat.removeFromCombat(targetUser))
+                {
+                    response.respond {
+                        content = "${targetUser.mention} was kicked from combat!"
+                    }
+                    return
                 }
             }
 
