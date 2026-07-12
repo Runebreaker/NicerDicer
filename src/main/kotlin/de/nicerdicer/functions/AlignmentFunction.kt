@@ -17,9 +17,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
 {
     val validOrders = listOf("Lawful", "Neutral", "Chaotic")
     val validIntents = listOf("Good", "Neutral", "Evil")
-    private val alignmentRoleNames = validOrders.flatMap { order ->
-        validIntents.map { intent -> alignmentRoleName(order, intent) }
-    }.toSet()
+    private val alignmentRoleNames = setOf("Good", "Evil")
 
     override suspend fun prepare(kord: Kord)
     {
@@ -81,33 +79,44 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                     val ok = Database.setAlignment(guildIdVal, userId, order, intent)
                     if (ok)
                     {
-                        val roleName = alignmentRoleName(order, intent)
+                        val alignmentName = alignmentRoleName(order, intent)
+                        val roleName = when
+                        {
+                            intent == "Good" || (order == "Lawful" && intent == "Neutral") -> "Good"
+                            intent == "Evil" || (order == "Chaotic" && intent == "Neutral") -> "Evil"
+                            else -> null
+                        }
                         try
                         {
                             val guild = event.kord.getGuild(Snowflake(guildIdVal))
                             val member = guild.getMember(event.interaction.user.id)
                             val guildRoles = guild.roles.toList()
-                            val alignmentRole = guildRoles.firstOrNull { it.name.equals(roleName, ignoreCase = true) }
-                                ?: guild.createRole { name = roleName }
                             val existingAlignmentRoleIds = guildRoles
                                 .filter { role -> alignmentRoleNames.any { it.equals(role.name, ignoreCase = true) } }
                                 .map { it.id }
                                 .toSet()
+                            val memberRoles = (member.roleIds - existingAlignmentRoleIds).toMutableSet()
+
+                            roleName?.let { name ->
+                                val alignmentRole = guildRoles.firstOrNull { it.name.equals(name, ignoreCase = true) }
+                                    ?: guild.createRole { this.name = name }
+                                memberRoles.add(alignmentRole.id)
+                            }
 
                             member.edit {
-                                roles = (member.roleIds - existingAlignmentRoleIds + alignmentRole.id).toMutableSet()
+                                roles = memberRoles
                             }
                         } catch (e: Exception)
                         {
                             println("AlignmentFunction.execute: alignment role update failed for user $userId in guild $guildIdVal: ${e.message}")
                             e.printStackTrace()
                             response.respond {
-                                content = "Your alignment has been set to ${roleName.bold()}, but the Discord role could not be updated. Check the bot's Manage Roles permission and role hierarchy, then run /alignment set again."
+                                content = "Your alignment has been set to ${alignmentName.bold()}, but the Discord role could not be updated. Check the bot's Manage Roles permission and role hierarchy, then run /alignment set again."
                             }
                             return
                         }
 
-                        response.respond { content = "Your alignment has been set to ${roleName.bold()}" }
+                        response.respond { content = "Your alignment has been set to ${alignmentName.bold()}" }
                     }
                     else
                     {
