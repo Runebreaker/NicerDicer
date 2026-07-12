@@ -478,6 +478,7 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
         combatOrder.clear()
         initiativeOrder.clear()
         roundTracker = 0
+        turnTracker = 0
         return winners
     }
 
