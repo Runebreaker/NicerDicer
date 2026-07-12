@@ -8,7 +8,6 @@ import dev.kord.rest.builder.interaction.string
 
 object ConcFunction : FunctionBase("c", "Roll a concentration check.")
 {
-    /** Registers `/c` so concentration checks can use their dedicated 1d10+5 defaults. */
     override suspend fun prepare(kord: Kord)
     {
         kord.createGlobalChatInputCommand(name, description) {
@@ -18,7 +17,6 @@ object ConcFunction : FunctionBase("c", "Roll a concentration check.")
         }
     }
 
-    /** Executes one concentration check with the same shorthand modifiers as the legacy roll command. */
     override suspend fun execute(event: ChatInputCommandInteractionCreateEvent)
     {
         val response = event.interaction.deferPublicResponse()
