@@ -1,6 +1,7 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.util.RollResult
+import de.nicerdicer.util.bold
 import de.nicerdicer.util.italic
 import de.nicerdicer.util.stricken
 import dev.kord.core.Kord
@@ -160,7 +161,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 combat.setInitiative(user, result, rollResult)
 
                 response.respond {
-                    content = "Initiative set to $result for ${user.mention}!"
+                    content = "Initiative set to ${"$rollString = $result".bold()} for ${user.mention}!"
                 }
             }
 
