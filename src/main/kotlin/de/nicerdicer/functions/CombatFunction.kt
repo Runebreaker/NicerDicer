@@ -27,7 +27,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
             subCommand("start", "Starts combat!")
             subCommand("finish", "Finish combat!")
             subCommand("leave", "Leave combat.")
-            subCommand("setInit", "Sets initiative and roll type.") {
+            subCommand("set_init", "Sets initiative and roll type.") {
                 integer("result", "Initiative result.") { required = true }
                 string("roll", "String for what roll is used; e.g. 3d20+4") { required = true }
             }
@@ -137,7 +137,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
 
-            "setInit" ->
+            "set_init" ->
             {
                 val response = event.interaction.deferPublicResponse()
 
