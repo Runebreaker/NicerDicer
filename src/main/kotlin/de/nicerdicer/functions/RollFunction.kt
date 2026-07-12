@@ -2,6 +2,7 @@ package de.nicerdicer.functions
 
 import de.nicerdicer.util.RollResult
 import dev.kord.core.Kord
+import dev.kord.core.behavior.interaction.response.createPublicFollowup
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 import dev.kord.rest.builder.interaction.integer
@@ -16,7 +17,7 @@ object RollFunction : FunctionBase("roll", "Rolls the dice!") {
             integer(name = "roll_modifier", "Value to add to the result; e.g. 4 or -3") {
                 required = false
             }
-            integer(name = "roll_times", "How many times to repeat this roll; maximum 20") {
+            integer(name = "roll_times", "How many times to repeat this roll; maximum 100") {
                 required = false
             }
             integer("dice_type", "What type of die to use; e.g. d6") {
@@ -43,13 +44,14 @@ object RollFunction : FunctionBase("roll", "Rolls the dice!") {
         val modifier = event.interaction.command.integers["roll_modifier"]?.toInt() ?: 4
         val rollTimes = event.interaction.command.integers["roll_times"] ?: 1
 
-        if (rollTimes !in 1..20)
+        if (rollTimes !in 1..100)
         {
-            response.respond { content = "Roll times must be between 1 and 20." }
+            response.respond { content = "Roll times must be between 1 and 100." }
             return
         }
 
-        val sb = StringBuilder()
+        val resultPages = mutableListOf<String>()
+        var resultPage = StringBuilder()
         repeat(rollTimes.toInt())
         {
             val result = RollResult(diceType, diceAmount, modifier)
@@ -59,16 +61,33 @@ object RollFunction : FunctionBase("roll", "Rolls the dice!") {
                 return
             }
 
-            if (rollTimes > 1) sb.append("Roll ${it + 1}: ")
-            sb.append(result.getRollString()).append("\n")
+            val line = if (rollTimes > 1) "Roll ${it + 1}: ${result.getRollString()}" else result.getRollString()
+            if (resultPage.isNotEmpty() && resultPage.length + line.length + 1 > 2_000)
+            {
+                resultPages.add(resultPage.toString().trimEnd())
+                resultPage = StringBuilder()
+            }
+            resultPage.append(line).append("\n")
         }
 
         event.interaction.command.strings["note"]?.let {
-            sb.append("/// $it")
+            val note = "    /// $it"
+            if (resultPage.isNotEmpty() && resultPage.length + note.length > 2_000)
+            {
+                resultPages.add(resultPage.toString().trimEnd())
+                resultPage = StringBuilder()
+            }
+            resultPage.append(note)
         }
+        resultPages.add(resultPage.toString().trimEnd())
 
-        response.respond {
-            content = sb.toString().trimEnd()
+        val followup = response.respond {
+            content = resultPages.first()
+        }
+        resultPages.drop(1).forEach { page ->
+            followup.createPublicFollowup {
+                content = page
+            }
         }
     }
 }
