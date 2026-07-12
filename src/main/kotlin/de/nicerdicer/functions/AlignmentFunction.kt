@@ -14,6 +14,7 @@ import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 import dev.kord.rest.builder.interaction.subCommand
 import dev.kord.rest.builder.interaction.string
+import dev.kord.rest.builder.interaction.user
 import kotlinx.coroutines.flow.toList
 
 object AlignmentFunction : FunctionBase("alignment", "Everything to do with alignments.")
@@ -21,6 +22,9 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
     val validOrders = listOf("Lawful", "Neutral", "Chaotic")
     val validIntents = listOf("Good", "Neutral", "Evil")
     private val alignmentRoleNames = setOf("Good", "Evil")
+    private val alignmentNames = validIntents.flatMap { intent ->
+        validOrders.map { order -> alignmentRoleName(order, intent) }
+    }
 
     override suspend fun prepare(kord: Kord)
     {
@@ -41,7 +45,13 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
             }
             subCommand("chart", "Show the alignment chart and player counts") { }
             subCommand("show", "Show an alignment, player, or alignment group") {
-                string("target", "Good, Evil, an alignment, or a player name") {
+                string("alignment", "Good, Evil, or a specific alignment") {
+                    required = false
+                    (listOf("Good", "Evil") + alignmentNames).forEach {
+                        choice(it, it)
+                    }
+                }
+                user("player", "Show a player's alignment") {
                     required = false
                 }
             }
@@ -140,8 +150,31 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                 "show" ->
                 {
                     val userId = event.interaction.user.id.toString()
-                    val target = event.interaction.command.strings["target"]?.trim().orEmpty()
-                    if (target.isBlank())
+                    val target = event.interaction.command.strings["alignment"]
+                    val player = event.interaction.command.users["player"]
+                    if (target != null && player != null)
+                    {
+                        response.respond { content = "Choose either an alignment or a player." }
+                        return
+                    }
+
+                    if (player != null)
+                    {
+                        val alignment = Database.getAlignment(guildIdVal, player.id.toString())
+                        if (alignment != null)
+                        {
+                            response.respond {
+                                content = "${player.mention}'s alignment is ${alignmentRoleName(alignment.alignmentOrder, alignment.intent).bold()}"
+                            }
+                        }
+                        else
+                        {
+                            response.respond { content = "${player.mention} has not set an alignment yet." }
+                        }
+                        return
+                    }
+
+                    if (target == null)
                     {
                         val alignment = Database.getAlignment(guildIdVal, userId)
                         if (alignment != null)
@@ -156,22 +189,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                     }
 
                     val allAlignments = Database.getAlignments(guildIdVal)
-                    val isAlignmentTarget = target.equals("good", ignoreCase = true)
-                        || target.equals("evil", ignoreCase = true)
-                        || alignmentRoleNames.any { it.equals(target, ignoreCase = true) }
-                    val matches = if (isAlignmentTarget)
-                    {
-                        filterAlignments(allAlignments, target)
-                    } else
-                    {
-                        val playerMatches = mutableListOf<AlignmentEntry>()
-                        for (alignment in allAlignments)
-                        {
-                            val memberName = KordUtil.getMemberName(event.kord, Snowflake(guildIdVal), Snowflake(alignment.userId))
-                            if (memberName.equals(target, ignoreCase = true)) playerMatches.add(alignment)
-                        }
-                        playerMatches
-                    }
+                    val matches = filterAlignments(allAlignments, target)
 
                     if (matches.isEmpty())
                     {
