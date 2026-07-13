@@ -4,6 +4,7 @@ import de.nicerdicer.functions.AlignmentFunction
 import de.nicerdicer.functions.AugmentFunction
 import de.nicerdicer.functions.CardFunction
 import de.nicerdicer.functions.ChangeDiceFunction
+import de.nicerdicer.functions.ConcFunction
 import de.nicerdicer.functions.CombatFunction
 import de.nicerdicer.functions.FactionFunction
 import de.nicerdicer.functions.FlawFunction
@@ -36,6 +37,7 @@ object Registry
         AugmentFunction,
         CombatFunction,
         LegacyRollFunction,
+        ConcFunction,
         ChangeDiceFunction,
         TagFunction,
         QuickTagFunction,
