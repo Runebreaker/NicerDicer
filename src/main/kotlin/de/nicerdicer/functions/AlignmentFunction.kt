@@ -23,7 +23,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
     val validIntents = listOf("Good", "Neutral", "Evil")
     private val alignmentRoleNames = setOf("Good", "Evil")
     private val alignmentNames = validIntents.flatMap { intent ->
-        validOrders.map { order -> alignmentRoleName(order, intent) }
+        validOrders.map { order -> alignmentName(order, intent) }
     }
 
     override suspend fun prepare(kord: Kord)
@@ -47,7 +47,9 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
             subCommand("show", "Show an alignment, player, or alignment group") {
                 string("alignment", "Good, Evil, or a specific alignment") {
                     required = false
-                    (listOf("Good", "Evil") + alignmentNames).forEach {
+                    choice("Good", "Good")
+                    choice("Evil", "Evil")
+                    alignmentNames.forEach {
                         choice(it, it)
                     }
                 }
@@ -154,7 +156,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                     val player = event.interaction.command.users["player"]
                     if (target != null && player != null)
                     {
-                        response.respond { content = "Choose either an alignment or a player." }
+                        response.respond { content = "Choose either an alignment or a player, not both!" }
                         return
                     }
 
@@ -164,7 +166,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                         if (alignment != null)
                         {
                             response.respond {
-                                content = "${player.mention}'s alignment is ${alignmentRoleName(alignment.alignmentOrder, alignment.intent).bold()}"
+                                content = "${player.mention}'s alignment is ${alignmentName(alignment.alignmentOrder, alignment.intent).bold()}"
                             }
                         }
                         else
@@ -179,7 +181,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                         val alignment = Database.getAlignment(guildIdVal, userId)
                         if (alignment != null)
                         {
-                            response.respond { content = "Your alignment is ${alignmentRoleName(alignment.alignmentOrder, alignment.intent).bold()}" }
+                            response.respond { content = "Your alignment is ${alignmentName(alignment.alignmentOrder, alignment.intent).bold()}" }
                         }
                         else
                         {
@@ -202,7 +204,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                     for (alignment in matches)
                     {
                         val memberName = KordUtil.getMemberName(event.kord, Snowflake(guildIdVal), Snowflake(alignment.userId))
-                        val line = "$memberName: ${alignmentRoleName(alignment.alignmentOrder, alignment.intent)}"
+                        val line = "$memberName: ${alignmentName(alignment.alignmentOrder, alignment.intent)}"
                         if (resultPage.isNotEmpty() && resultPage.length + line.length + 1 > 2_000)
                         {
                             resultPages.add(resultPage.toString())
@@ -238,7 +240,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
     /** Formats current alignment counts as a three-by-three D&D alignment chart for Discord. */
     internal fun formatAlignmentChart(alignments: List<AlignmentEntry>): String
     {
-        val counts = alignments.groupingBy { alignmentRoleName(it.alignmentOrder, it.intent) }.eachCount()
+        val alignmentCounts = alignments.groupingBy { alignmentName(it.alignmentOrder, it.intent) }.eachCount()
         val rows = listOf(
             listOf("Lawful" to "Good", "Neutral" to "Good", "Chaotic" to "Good"),
             listOf("Lawful" to "Neutral", "Neutral" to "Neutral", "Chaotic" to "Neutral"),
@@ -247,8 +249,8 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
 
         return rows.joinToString(prefix = "```\n", postfix = "\n```", separator = "\n") { row ->
             row.joinToString(" | ") { (order, intent) ->
-                val roleName = alignmentRoleName(order, intent)
-                "$roleName: ${counts[roleName] ?: 0}"
+                val cellAlignmentName = alignmentName(order, intent)
+                "$cellAlignmentName: ${alignmentCounts[cellAlignmentName] ?: 0}"
             }
         }
     }
@@ -264,7 +266,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                 it.intent == "Evil" || (it.alignmentOrder == "Chaotic" && it.intent == "Neutral")
             }
             else -> alignments.filter {
-                alignmentRoleName(it.alignmentOrder, it.intent).equals(target, ignoreCase = true)
+                alignmentName(it.alignmentOrder, it.intent).equals(target, ignoreCase = true)
             }
         }
 }
