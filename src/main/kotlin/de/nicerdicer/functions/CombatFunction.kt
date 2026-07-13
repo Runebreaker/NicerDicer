@@ -27,7 +27,8 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
         kord.createGlobalChatInputCommand(name, description) {
             subCommand("start", "Starts combat!")
             subCommand("finish", "Finish combat!")
-            subCommand("init", "Sets initiative and roll type.") {
+            subCommand("leave", "Leave combat.")
+            subCommand("set_init", "Sets initiative and roll type.") {
                 integer("result", "Initiative result.") { required = true }
                 string("roll", "String for what roll is used; e.g. 3d20+4") { required = true }
             }
@@ -39,7 +40,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                     required = false
                 }
             }
-            subCommand("end", "Ends your turn.")
+            subCommand("next", "Ends your turn.")
             subCommand("leave", "Leave combat.")
             subCommand("down", "Removes you from combat.")
             subCommand("kick", "Kicks a user from combat") {
@@ -125,7 +126,26 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
 
-            "init" ->
+            "leave" ->
+            {
+                val response = event.interaction.deferPublicResponse()
+
+                val removed = combat.initiativeOrder.removeIf { it.user == user }
+
+                if (removed)
+                {
+                    response.respond {
+                        content = "${user.mention} left the combat!"
+                    }
+                    return
+                }
+
+                response.respond {
+                    content = "You are not in combat!"
+                }
+            }
+
+            "set_init" ->
             {
                 val response = event.interaction.deferPublicResponse()
 
@@ -202,7 +222,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
 
-            "end" ->
+            "next" ->
             {
                 val response = event.interaction.deferPublicResponse()
 
