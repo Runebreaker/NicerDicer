@@ -79,7 +79,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                     val ok = Database.setAlignment(guildIdVal, userId, order, intent)
                     if (ok)
                     {
-                        val alignmentName = alignmentRoleName(order, intent)
+                        val displayAlignmentName = alignmentName(order, intent)
                         val roleName = when
                         {
                             intent == "Good" || (order == "Lawful" && intent == "Neutral") -> "Good"
@@ -111,12 +111,12 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
                             println("AlignmentFunction.execute: alignment role update failed for user $userId in guild $guildIdVal: ${e.message}")
                             e.printStackTrace()
                             response.respond {
-                                content = "Your alignment has been set to ${alignmentName.bold()}, but the Discord role could not be updated. Check the bot's Manage Roles permission and role hierarchy, then run /alignment set again."
+                                content = "Your alignment has been set to ${displayAlignmentName.bold()}, but the Discord role could not be updated. Check the bot's Manage Roles permission and role hierarchy, then run /alignment set again."
                             }
                             return
                         }
 
-                        response.respond { content = "Your alignment has been set to ${alignmentName.bold()}" }
+                        response.respond { content = "Your alignment has been set to ${displayAlignmentName.bold()}" }
                     }
                     else
                     {
@@ -152,7 +152,7 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
         }
     }
 
-    /** Maps stored alignment axes to the Discord role name used to identify a player's alignment. */
-    internal fun alignmentRoleName(order: String, intent: String): String =
+    /** Maps stored alignment axes to the player-facing alignment name. */
+    internal fun alignmentName(order: String, intent: String): String =
         if (order == "Neutral" && intent == "Neutral") "True Neutral" else "$order $intent"
 }
