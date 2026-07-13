@@ -1,5 +1,8 @@
 package de.nicerdicer.util
 
+import de.nicerdicer.util.StringFormatter.formatModifier
+import kotlin.math.absoluteValue
+
 class RollResult(var diceType: Int, var amount: Int, var modifier: Int)
 {
     private val diceRolls: MutableList<Int> = mutableListOf()
@@ -20,6 +23,7 @@ class RollResult(var diceType: Int, var amount: Int, var modifier: Int)
     {
         if (diceType <= 0 || amount <= 0) return false
 
+        isCrit = false
         diceRolls.clear()
         repeat(amount)
         {
@@ -38,14 +42,14 @@ class RollResult(var diceType: Int, var amount: Int, var modifier: Int)
 
     fun getRollString(): String = "${getInputString()} => ${toString()}"
 
-    fun getInputString(): String = "$amount D$diceType ${if (modifier >= 0) "+" else "-"} $modifier"
+    fun getInputString(): String = "$amount D$diceType ${formatModifier(modifier)}"
 
     override fun toString(): String
     {
         val sb = StringBuilder()
 
         sb.append(StringFormatter.formatRolls(diceRolls))
-        sb.append(" (+ $modifier) = ")
+        sb.append(" (${formatModifier(modifier)}) = ")
         sb.append(StringFormatter.formatResult(result, isCrit))
 
         return sb.toString()

@@ -18,7 +18,7 @@ object ReputationFunction : FunctionBase("rep", "Everything to do with reputatio
 
     override suspend fun execute(event: ChatInputCommandInteractionCreateEvent)
     {
-        val response = event.interaction.deferEphemeralResponse()
+        val response = event.interaction.deferPublicResponse()
         val integer = event.interaction.command.integers["amount"]?.toInt()
 
         val guildId = event.interaction.data.guildId.value?.toString()

@@ -1,6 +1,7 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.util.RollResult
+import de.nicerdicer.util.bold
 import de.nicerdicer.util.italic
 import de.nicerdicer.util.stricken
 import dev.kord.core.Kord
@@ -40,7 +41,14 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
             subCommand("next", "Ends your turn.")
+            subCommand("leave", "Leave combat.")
             subCommand("down", "Removes you from combat.")
+            subCommand("kick", "Kicks a user from combat") {
+                user("user", "User to kick from combat.") {
+                    required = true
+                    autocomplete = true
+                }
+            }
             subCommand("list", "Lists everyone in combat.")
             subCommand("delay", "Delays your turn until after the given person's") {
                 user("user", "User to delay your turn after.") {
@@ -173,7 +181,7 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 combat.setInitiative(user, result, rollResult)
 
                 response.respond {
-                    content = "Initiative set to $result for ${user.mention}!"
+                    content = "Initiative set to ${"$rollString = $result".bold()} for ${user.mention}!"
                 }
             }
 
@@ -250,14 +258,14 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
                 }
             }
 
-            "down" ->
+            "leave", "down" ->
             {
                 val response = event.interaction.deferPublicResponse()
 
-                if (!combat.isRunning)
+                if (!combat.isRunning && combat.initiativeOrder.removeIf { it.user == user })
                 {
                     response.respond {
-                        content = "Combat hasn't started yet!"
+                        content = "${user.mention} left combat!"
                     }
                     return
                 }
@@ -272,6 +280,29 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
 
                 response.respond {
                     content = "You are not in combat!"
+                }
+            }
+
+            "kick" ->
+            {
+                val response = event.interaction.deferPublicResponse()
+
+                val targetUser = event.interaction.command.users["user"]!!
+
+                if (!combat.isRunning && combat.initiativeOrder.removeIf { it.user == targetUser })
+                {
+                    response.respond {
+                        content = "${targetUser.mention} was kicked from initiative!"
+                    }
+                    return
+                }
+
+                if (combat.removeFromCombat(targetUser))
+                {
+                    response.respond {
+                        content = "${targetUser.mention} was kicked from combat!"
+                    }
+                    return
                 }
             }
 
@@ -478,6 +509,7 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
         combatOrder.clear()
         initiativeOrder.clear()
         roundTracker = 0
+        turnTracker = 0
         return winners
     }
 
@@ -514,7 +546,10 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
 
         if (matches.isEmpty()) return false
 
-        matches.forEach { it.alive = false }
+        matches.forEach { match ->
+            trackedReminders[roundTracker]?.get(turnTracker)?.removeIf { it.first == user }
+            match.alive = false
+        }
 
         return true
     }

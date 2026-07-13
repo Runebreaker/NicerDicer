@@ -1,8 +1,12 @@
 package de.nicerdicer.util
 
+import kotlin.math.absoluteValue
+
 object StringFormatter
 {
     fun formatRolls(rolls: List<Int>): String = rolls.joinToString(" + ") { if (it == rolls.max()) it.toString() else it.toString().stricken() }
+
+    fun formatModifier(modifier: Int): String = "${if (modifier >= 0) "+" else "-"} ${modifier.absoluteValue}"
 
     fun formatResult(result: Int, isCrit: Boolean): String
     {
