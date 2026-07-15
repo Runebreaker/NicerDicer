@@ -402,7 +402,7 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
      */
     fun checkForReminders(): String?
     {
-        val notes = trackedReminders[roundTracker]?.get(turnTracker) ?: return null
+        val notes = trackedReminders[roundTracker]?.get(turnTracker)?.ifEmpty { return null } ?: return null
 
         val sb = StringBuilder()
 
