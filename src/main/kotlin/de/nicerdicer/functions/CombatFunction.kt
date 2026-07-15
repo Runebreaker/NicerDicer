@@ -527,7 +527,11 @@ class Combat(val combatOrder: MutableList<Combatant?> = mutableListOf(), val tra
         if (matches.isEmpty()) return false
 
         matches.forEach { match ->
-            trackedReminders[roundTracker]?.get(turnTracker)?.removeIf { it.first == user }
+            trackedReminders.forEach { byRound ->
+                byRound.value.forEach { byTurn ->
+                    byTurn.value.removeIf { it.first == user }
+                }
+            }
             match.alive = false
         }
 
