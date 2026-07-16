@@ -21,7 +21,7 @@
     },
     "Moderate": {
       "Any": {
-        "Hacked": "If you have suffered wounds prior to this attack, the attacker rolls a DC14 Attacking Save. If successful, inflicts an additional Moderate wound.",
+        "Hacked": "If you have suffered wounds prior to this attack, the attacker rolls a DC14 Attacking Stat Save. If successful, inflicts an additional Moderate wound.",
         "Butchered": "Inflicts an additional Lesser wound. **Scars**.",
         "Flayed": "Remove one instance of the Armour quality from the target's costume. If there is no armour to destroy, you suffer **Bleed** and **Pain**."
       },
