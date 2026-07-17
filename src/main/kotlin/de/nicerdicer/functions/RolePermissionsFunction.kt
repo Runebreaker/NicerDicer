@@ -13,10 +13,10 @@ object RolePermissionsFunction : FunctionBase("permissions", "Everything for rol
 {
     var kord: Kord? = null
 
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        this.kord = kord
-        kord.createGlobalChatInputCommand(name, description) {
+        this.kord = registrar.kord
+        registrar.command(name, description, ::execute) {
             subCommand("mod", "Set the moderator role (admin only)") {
                 string("role", "Role mention or ID to mark as moderator") { required = true }
             }

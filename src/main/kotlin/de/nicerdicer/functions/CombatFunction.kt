@@ -21,10 +21,10 @@ object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
     var kord: Kord? = null
     val trackedCombats = mutableMapOf<Channel, Combat>()
 
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        this.kord = kord
-        kord.createGlobalChatInputCommand(name, description) {
+        this.kord = registrar.kord
+        registrar.command(name, description, ::execute) {
             subCommand("start", "Starts combat!")
             subCommand("finish", "Finish combat!")
             subCommand("set_init", "Sets initiative and roll type.") {

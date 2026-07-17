@@ -13,9 +13,9 @@ import dev.kord.rest.builder.message.embed
 
 object MookFunction : FunctionBase("mook", "Roll a mook.")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             subCommand("roll", "Roll a mook") { }
         }
     }

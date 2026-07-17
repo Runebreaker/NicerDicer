@@ -10,7 +10,7 @@ import dev.kord.rest.builder.message.EmbedBuilder
 
 object AugmentFunction : FunctionBase("augment", "Rolls an augment.")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
         println("Preparing augments...")
         try {
@@ -21,7 +21,7 @@ object AugmentFunction : FunctionBase("augment", "Rolls an augment.")
             e.printStackTrace()
         }
 
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             string("category", "e.g. Breaker or Thinker") {
                 required = true
                 for (entry in Classification.entries)

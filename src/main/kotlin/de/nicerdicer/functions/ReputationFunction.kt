@@ -9,9 +9,9 @@ import dev.kord.rest.builder.interaction.integer
 
 object ReputationFunction : FunctionBase("rep", "Everything to do with reputation!")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             integer("amount", "The amount of rep to add! Can be negative.") { required = false }
         }
     }

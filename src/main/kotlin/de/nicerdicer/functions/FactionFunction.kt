@@ -18,7 +18,6 @@ import dev.kord.core.behavior.interaction.respondEphemeral
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 import dev.kord.core.event.interaction.GuildModalSubmitInteractionCreateEvent
-import dev.kord.core.on
 import dev.kord.rest.builder.component.option
 import dev.kord.rest.builder.interaction.string
 import dev.kord.rest.builder.interaction.subCommand
@@ -34,11 +33,11 @@ object FactionFunction : FunctionBase("faction", "Everything about factions.")
 {
     private var kord: Kord? = null
 
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        this.kord = kord
+        this.kord = registrar.kord
 
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             subCommand("create", "Create a new faction")
             subCommand("update", "Update faction description and/or image") {
                 string("name", "Faction name") { required = true }
@@ -58,9 +57,7 @@ object FactionFunction : FunctionBase("faction", "Everything about factions.")
             subCommand("list", "List all factions in this guild")
         }
 
-        kord.on<GuildModalSubmitInteractionCreateEvent> {
-            handleModalSubmission(this)
-        }
+        registrar.modal(::handleModalSubmission)
 
         Database.init()
     }

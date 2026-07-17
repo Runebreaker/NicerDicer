@@ -7,9 +7,9 @@ import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 
 object ChangeDiceFunction : FunctionBase("throw", "Throw your dice away and get new ones!")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description)
+        registrar.command(name, description, ::execute)
     }
 
     override suspend fun execute(event: ChatInputCommandInteractionCreateEvent)

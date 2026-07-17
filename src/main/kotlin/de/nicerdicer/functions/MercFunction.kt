@@ -10,9 +10,9 @@ import dev.kord.rest.builder.message.embed
 
 object MercFunction : FunctionBase("merc", "Roll a merc.")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             subCommand("roll", "Roll a merc") { }
         }
     }

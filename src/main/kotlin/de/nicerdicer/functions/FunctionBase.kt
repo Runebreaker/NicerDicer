@@ -1,10 +1,10 @@
 package de.nicerdicer.functions
 
-import dev.kord.core.Kord
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 
 abstract class FunctionBase(val name: String, val description: String)
 {
-    abstract suspend fun prepare(kord: Kord)
+    /** Declares this feature's interactions so the registry can register them centrally. */
+    abstract fun register(registrar: InteractionRegistrar)
     abstract suspend fun execute(event: ChatInputCommandInteractionCreateEvent)
 }

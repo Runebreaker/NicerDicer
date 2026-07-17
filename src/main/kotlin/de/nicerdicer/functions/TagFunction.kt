@@ -9,16 +9,15 @@ import dev.kord.core.behavior.interaction.respondPublic
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 import dev.kord.core.event.interaction.GuildModalSubmitInteractionCreateEvent
-import dev.kord.core.on
 import dev.kord.rest.builder.interaction.string
 import dev.kord.rest.builder.interaction.subCommand
 
 object TagFunction : FunctionBase("tag", "Show given tag.")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
         // register command with subcommands: create, edit, delete, get, list
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             subCommand("create", "Create a new tag") {
                 string("name", "Tag name") { required = false }
                 string("content", "Tag content") { required = false }
@@ -36,9 +35,7 @@ object TagFunction : FunctionBase("tag", "Show given tag.")
             subCommand("list", "List your tags")
         }
 
-        kord.on<GuildModalSubmitInteractionCreateEvent> {
-            handleTagModal(this)
-        }
+        registrar.modal(::handleTagModal)
 
         Database.init()
     }

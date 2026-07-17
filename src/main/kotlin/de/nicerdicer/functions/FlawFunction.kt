@@ -12,7 +12,7 @@ object FlawFunction : FunctionBase("flaw", "Rolls flaws.")
 {
     // no local caching: fetch from DB in execute()
 
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
         println("Preparing flaws...")
         try {
@@ -23,7 +23,7 @@ object FlawFunction : FunctionBase("flaw", "Rolls flaws.")
             e.printStackTrace()
         }
 
-        kord.createGlobalChatInputCommand("flaw", "Rolls flaws.") {
+        registrar.command(name, description, ::execute) {
             subCommand("power", "Rolls a power flaw.")
             subCommand("life", "Rolls a power flaw.")
         }

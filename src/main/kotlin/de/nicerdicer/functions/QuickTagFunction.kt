@@ -8,9 +8,9 @@ import dev.kord.rest.builder.interaction.string
 
 object QuickTagFunction : FunctionBase("t", "Gets a tag!")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             string("tag_name", "The name of the tag to get") {
                 required = true
             }

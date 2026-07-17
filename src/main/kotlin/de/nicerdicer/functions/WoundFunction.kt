@@ -16,9 +16,9 @@ object WoundFunction : FunctionBase("wounds", "Everything concerning Wounds.")
     val severityPattern = Regex("\\d+[cml]")
     var wounds = Wounds()
 
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             string("amount", "e.g. 1m1l") {
                 required = true
             }

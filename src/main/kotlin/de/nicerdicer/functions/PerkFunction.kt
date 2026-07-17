@@ -10,7 +10,7 @@ import dev.kord.rest.builder.message.EmbedBuilder
 
 object PerkFunction : FunctionBase("perk", "Rolls perks.")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
         println("Preparing perks...")
         try {
@@ -21,7 +21,7 @@ object PerkFunction : FunctionBase("perk", "Rolls perks.")
             e.printStackTrace()
         }
 
-        kord.createGlobalChatInputCommand(name, description)
+        registrar.command(name, description, ::execute)
         {
             subCommand("power", "Rolls a power perk.")
             subCommand("life", "Rolls a power perk.")

@@ -26,9 +26,9 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
         validOrders.map { order -> alignmentName(order, intent) }
     }
 
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             subCommand("set", "Set your alignment") {
                 string("order", "Lawful, Neutral, or Chaotic") { 
                     required = true

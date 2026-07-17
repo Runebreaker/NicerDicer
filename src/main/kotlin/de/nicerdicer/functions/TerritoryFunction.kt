@@ -53,11 +53,11 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
     private const val COLOR_QUEST = "#40E0D0"      // Turquoise
     private const val COLOR_CHALLENGED = "#212121" // Dark Gray
 
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        this.kord = kord
+        this.kord = registrar.kord
         // register command with subcommands: claim, release, list, map, challenge, rename
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             subCommand("claim", "Claim a territory (type inferred from your alignment)") {
                 string("id", "Territory id (number)") { required = true }
                 string("name", "Optional: give this territory a custom name") { required = false }

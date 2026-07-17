@@ -9,11 +9,11 @@ import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 object ShutdownFunction : FunctionBase("shutdown", "Shutdown the bot!") {
     var kord: Kord? = null
 
-    override suspend fun prepare(kord: Kord) {
-        kord.createGlobalChatInputCommand(name, description) {
+    override fun register(registrar: InteractionRegistrar) {
+        registrar.command(name, description, ::execute) {
             defaultMemberPermissions = Permissions(Permission.Administrator)
         }
-        this.kord = kord
+        this.kord = registrar.kord
     }
 
     override suspend fun execute(event: ChatInputCommandInteractionCreateEvent) {

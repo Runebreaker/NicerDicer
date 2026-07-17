@@ -19,9 +19,9 @@ object CardFunction : FunctionBase("cards", "Represents a deck of cards.")
     val userDecks = mutableMapOf<User, CardDeck>()
     val userHands = mutableMapOf<User, CardHand>()
 
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             subCommand("prepare", "Prepares a 52 Cards + 2 Jokers deck for the user.")
             subCommand("draw", "Draws a card from the deck.") {
                 integer("draw_amount", "How many cards to draw.") {

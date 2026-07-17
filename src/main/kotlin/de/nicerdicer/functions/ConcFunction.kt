@@ -8,9 +8,9 @@ import dev.kord.rest.builder.interaction.string
 
 object ConcFunction : FunctionBase("c", "Roll a concentration check.")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             string("roll_string", "Optional modifier, such as +1, ++1, or --1") {
                 required = false
             }

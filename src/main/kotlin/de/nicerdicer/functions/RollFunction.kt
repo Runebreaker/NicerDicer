@@ -9,8 +9,8 @@ import dev.kord.rest.builder.interaction.integer
 import dev.kord.rest.builder.interaction.string
 
 object RollFunction : FunctionBase("roll", "Rolls the dice!") {
-    override suspend fun prepare(kord: Kord) {
-        kord.createGlobalChatInputCommand(name, description) {
+    override fun register(registrar: InteractionRegistrar) {
+        registrar.command(name, description, ::execute) {
             integer(name = "roll_amount", "How many dice to throw; e.g. 3") {
                 required = false
             }

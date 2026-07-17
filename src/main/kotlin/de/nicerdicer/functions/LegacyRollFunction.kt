@@ -9,9 +9,9 @@ import dev.kord.rest.builder.interaction.string
 
 object LegacyRollFunction : FunctionBase("r", "Roll function via a string.")
 {
-    override suspend fun prepare(kord: Kord)
+    override fun register(registrar: InteractionRegistrar)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        registrar.command(name, description, ::execute) {
             string("roll_string", "What to roll. Format: 3d20+4") {
                 required = false
             }
