@@ -5,11 +5,10 @@ import de.nicerdicer.util.CardDeck
 import de.nicerdicer.util.CardHand
 import de.nicerdicer.util.Rank
 import de.nicerdicer.util.Suit
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.entity.User
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
-import dev.kord.rest.builder.interaction.SubCommandBuilder
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.integer
 import dev.kord.rest.builder.interaction.string
 import dev.kord.rest.builder.interaction.subCommand
@@ -19,9 +18,9 @@ object CardFunction : FunctionBase("cards", "Represents a deck of cards.")
     val userDecks = mutableMapOf<User, CardDeck>()
     val userHands = mutableMapOf<User, CardHand>()
 
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             subCommand("prepare", "Prepares a 52 Cards + 2 Jokers deck for the user.")
             subCommand("draw", "Draws a card from the deck.") {
                 integer("draw_amount", "How many cards to draw.") {

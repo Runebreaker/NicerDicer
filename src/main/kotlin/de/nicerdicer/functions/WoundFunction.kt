@@ -1,24 +1,48 @@
 package de.nicerdicer.functions
 
+import de.nicerdicer.util.InteractableWoundsUtil
 import de.nicerdicer.util.WoundEffect
 import de.nicerdicer.util.WoundLocation
 import de.nicerdicer.util.WoundType
 import de.nicerdicer.util.Wounds
+import dev.kord.common.entity.ButtonStyle
+import dev.kord.common.entity.DiscordPartialEmoji
 import dev.kord.core.Kord
+import dev.kord.core.behavior.edit
+import dev.kord.core.behavior.interaction.response.DeferredPublicMessageInteractionResponseBehavior
 import dev.kord.core.behavior.interaction.response.createPublicFollowup
 import dev.kord.core.behavior.interaction.response.respond
+import dev.kord.core.behavior.interaction.updatePublicMessage
+import dev.kord.core.entity.ReactionEmoji
+import dev.kord.core.event.interaction.ActionInteractionCreateEvent
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.core.event.interaction.GuildButtonInteractionCreateEvent
+import dev.kord.core.event.interaction.GuildModalSubmitInteractionCreateEvent
+import dev.kord.core.on
+import dev.kord.gateway.Event
+import dev.kord.rest.builder.component.ActionRowBuilder
+import dev.kord.rest.builder.component.ButtonBuilder
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.string
 import dev.kord.rest.builder.message.EmbedBuilder
+import dev.kord.x.emoji.Emojis
+import kotlin.collections.get
 
 object WoundFunction : FunctionBase("wounds", "Everything concerning Wounds.")
 {
+    // Has to be 5, since in the worst case, 5 action row buttons are needed
+    const val EMBED_BATCH_SIZE = 5
+
     val severityPattern = Regex("\\d+[cml]")
     var wounds = Wounds()
 
-    override suspend fun prepare(kord: Kord)
+    override val modalHandlers: Map<String, suspend (ActionInteractionCreateEvent) -> Unit> = mapOf(
+        "wounds_button_" to { handleWoundsButton(it as GuildButtonInteractionCreateEvent) }
+    )
+
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             string("amount", "e.g. 1m1l") {
                 required = true
             }
@@ -76,79 +100,132 @@ object WoundFunction : FunctionBase("wounds", "Everything concerning Wounds.")
         val type = WoundType.valueOf(typeString)
 
         val locationString = event.interaction.command.strings["location"]?.uppercase()
-        var invalidLocation = false
         val location = locationString?.let {
             if (WoundLocation.entries.map { location -> location.name }.contains(locationString) && WoundLocation.valueOf(it) != WoundLocation.ANY) WoundLocation.valueOf(it)
-            else
-            {
-                invalidLocation = true
-                null
-            }
+            else null
         }
 
         val rolledWounds = wounds.roll(c, m, l, type, location)
-        val demolishedWounds = mutableListOf<WoundEffect>()
-        val embedBuilders = mutableListOf<EmbedBuilder>()
 
-        for (wound in rolledWounds.toList())
+        val embedBatches = makeWoundEmbedBatches(rolledWounds, EMBED_BATCH_SIZE)
+
+        respondWithEmbedBatches(response, embedBatches)
+    }
+
+    private fun makeWoundEmbedBatches(wounds: List<WoundEffect>, batchSize: Int, appendix: String? = null): MutableList<Pair<MutableList<EmbedBuilder>, ActionRowBuilder?>>
+    {
+        val woundBatches = mutableListOf<MutableList<WoundEffect>>()
+        val mutableWoundList = wounds.toMutableList()
+
+        while (mutableWoundList.isNotEmpty())
         {
-            when (wound.name.lowercase())
+            val batch = mutableListOf<WoundEffect>()
+            while (mutableWoundList.isNotEmpty() && batch.size < batchSize) batch.add(mutableWoundList.removeFirst())
+            woundBatches.add(batch)
+        }
+
+        val embedBatches = mutableListOf<Pair<MutableList<EmbedBuilder>, ActionRowBuilder?>>()
+        for (woundBatch in woundBatches)
+        {
+            val embedBatch = mutableListOf<EmbedBuilder>()
+            for (wound in woundBatch)
             {
-                "demolished" -> demolishedWounds.addAll(wounds.getDemolished(wound.location))
+                val newEmbed = EmbedBuilder()
+                val footer = EmbedBuilder.Footer()
+                footer.text = "Location: ${wound.location.toString().lowercase().replaceFirstChar { it.uppercase() }} - Severity: ${
+                    wound.severity.toString().lowercase().replaceFirstChar { it.uppercase() }
+                }${appendix?.let { " - $it" } ?: ""}"
+
+                newEmbed.title = wound.name
+                newEmbed.description = wound.description
+                newEmbed.color = wound.type.color
+                newEmbed.footer = footer
+
+                embedBatch.add(newEmbed)
             }
+            embedBatches.add(Pair(embedBatch, createWoundsActionRow(woundBatch)))
         }
 
-        for (wound in rolledWounds)
+        return embedBatches
+    }
+
+    private suspend fun respondWithEmbedBatches(response: DeferredPublicMessageInteractionResponseBehavior, embedBatches: MutableList<Pair<MutableList<EmbedBuilder>, ActionRowBuilder?>>)
+    {
+        if (embedBatches.isEmpty())
         {
-            val newEmbed = EmbedBuilder()
-            val footer = EmbedBuilder.Footer()
-            footer.text = "Location: ${wound.location.toString().lowercase().replaceFirstChar { it.uppercase() }} - Severity: ${
-                wound.severity.toString().lowercase().replaceFirstChar { it.uppercase() }
-            }"
-
-            newEmbed.title = wound.name
-            newEmbed.description = wound.description
-            newEmbed.color = type.color
-            newEmbed.footer = footer
-
-            embedBuilders.add(newEmbed)
+            response.respond {
+                content = "No wounds to display!"
+            }
+            return
         }
 
-        for (wound in demolishedWounds)
-        {
-            val newEmbed = EmbedBuilder()
-            val footer = EmbedBuilder.Footer()
-            footer.text = "Location: ${wound.location.toString().lowercase().replaceFirstChar { it.uppercase() }} - Severity: ${
-                wound.severity.toString().lowercase().replaceFirstChar { it.uppercase() }
-            } - From Demolished"
-
-            newEmbed.title = wound.name
-            newEmbed.description = wound.description
-            newEmbed.color = type.color
-            newEmbed.footer = footer
-            embedBuilders.add(newEmbed)
-        }
-
-        val embedBatches = mutableListOf<MutableList<EmbedBuilder>>()
-        while (embedBuilders.isNotEmpty())
-        {
-            val batch = mutableListOf<EmbedBuilder>()
-            while (embedBuilders.isNotEmpty() && batch.size < 10) batch.add(embedBuilders.removeFirst())
-            embedBatches.add(batch)
-        }
-
+        val firstBatch = embedBatches.removeFirst()
         val returnedResponse = response.respond {
-            content =
-                "${if (invalidLocation) "Location was invalid! " else ""}Rolling for ${if (c > 0) "${c}c" else ""}${if (m > 0) "${m}m" else ""}${if (l > 0) "${l}l" else ""} ${
-                    type.toString().lowercase().replaceFirstChar { it.uppercase() }
-                } to ${location?.toString()?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Anywhere"}!"
-            embeds = if (embedBatches.isNotEmpty()) embedBatches.removeFirst() else null
+            embeds = firstBatch.first
+            components = firstBatch.second?.let { mutableListOf(it) }
         }
         while (embedBatches.isNotEmpty())
         {
+            val nextBatch = embedBatches.removeFirst()
             returnedResponse.createPublicFollowup {
-                embeds = embedBatches.removeFirst()
+                embeds = nextBatch.first
+                components = nextBatch.second?.let { mutableListOf(it) }
             }
         }
+    }
+
+    private fun createWoundsActionRow(woundEffects: List<WoundEffect>): ActionRowBuilder?
+    {
+        val actionRow = ActionRowBuilder().apply {
+            var buttonNumber = 0
+            for (woundEffect in woundEffects)
+            {
+                if (woundEffect.name in InteractableWoundsUtil.interactableWounds.map { it.key })
+                {
+                    interactionButton(ButtonStyle.Primary, "wounds_button_${buttonNumber++}_${woundEffect.location}") {
+                        label = woundEffect.name
+                        emoji = DiscordPartialEmoji(name = ReactionEmoji.Unicode(if (woundEffect.name == "Demolished") Emojis.mag.unicode else Emojis.gameDie.unicode).name)
+                    }
+                }
+            }
+        }
+
+        if (actionRow.components.isEmpty()) return null
+        return actionRow
+    }
+
+    private suspend fun handleWoundsButton(event: GuildButtonInteractionCreateEvent)
+    {
+        val response = event.interaction.deferPublicResponse()
+
+        val woundLocation = event.interaction.component.customId?.removePrefix("wounds_button_")?.split("_")?.lastOrNull()?.let {
+            try
+            {
+                WoundLocation.valueOf(it.uppercase())
+            } catch (e: Exception)
+            {
+                println("WoundFunction.prepare: Error occurred while parsing wound location from button ${event.interaction.component.customId}: ${e.message}")
+                WoundLocation.ANY
+            }
+        } ?: WoundLocation.ANY
+        val woundName = event.interaction.component.label
+        val rolledEffects = InteractableWoundsUtil.interactableWounds[woundName]?.invoke(woundLocation) ?: emptyList()
+
+        val buttons = event.interaction.message.actionRows.first().interactionButtons
+        val buttonBuildersAdjusted = buttons.map { button ->
+            ButtonBuilder.InteractionButtonBuilder(ButtonStyle.Primary, button.key).apply {
+                label = button.value.label
+                emoji = DiscordPartialEmoji(name = button.value.emoji?.name)
+                disabled = button.value.customId == event.interaction.component.customId || button.value.disabled
+            }
+        }
+
+        event.interaction.message.edit {
+            components = mutableListOf(ActionRowBuilder().apply { components.addAll(buttonBuildersAdjusted) } )
+        }
+
+        val embedBatches = makeWoundEmbedBatches(rolledEffects, EMBED_BATCH_SIZE, "From $woundName")
+
+        respondWithEmbedBatches(response, embedBatches)
     }
 }

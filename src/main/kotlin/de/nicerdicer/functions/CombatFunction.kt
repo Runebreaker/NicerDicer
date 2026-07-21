@@ -4,13 +4,13 @@ import de.nicerdicer.util.RollResult
 import de.nicerdicer.util.bold
 import de.nicerdicer.util.italic
 import de.nicerdicer.util.stricken
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.createPublicFollowup
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.entity.User
 import dev.kord.core.entity.channel.Channel
 import dev.kord.core.entity.effectiveName
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.integer
 import dev.kord.rest.builder.interaction.string
 import dev.kord.rest.builder.interaction.subCommand
@@ -18,13 +18,11 @@ import dev.kord.rest.builder.interaction.user
 
 object CombatFunction : FunctionBase("combat", "Everything relating to combat.")
 {
-    var kord: Kord? = null
     val trackedCombats = mutableMapOf<Channel, Combat>()
 
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        this.kord = kord
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             subCommand("start", "Starts combat!")
             subCommand("finish", "Finish combat!")
             subCommand("set_init", "Sets initiative and roll type.") {

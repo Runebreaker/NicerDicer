@@ -53,7 +53,7 @@ class Wounds
                 if (candidate.isNotEmpty())
                 {
                     val chosen = candidate.first()
-                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, chosenLocation, WoundSeverity.CRITICAL))
+                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, chosenLocation, WoundSeverity.CRITICAL, type))
                 } else
                 {
                     println("Wounds.roll: no critical entries for type=$type location=$chosenLocation")
@@ -67,7 +67,7 @@ class Wounds
                 {
                     val idx = NicerRandom.random.nextInt(0, candidate.size)
                     val chosen = candidate[idx]
-                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, chosenLocation, WoundSeverity.MODERATE))
+                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, chosenLocation, WoundSeverity.MODERATE, type))
                 } else
                 {
                     println("Wounds.roll: no moderate entries for type=$type location=$chosenLocation")
@@ -81,7 +81,7 @@ class Wounds
                 {
                     val idx = NicerRandom.random.nextInt(0, candidate.size)
                     val chosen = candidate[idx]
-                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, chosenLocation, WoundSeverity.LESSER))
+                    woundEffects.add(WoundEffect(chosen.name, chosen.desc, chosenLocation, WoundSeverity.LESSER, type))
                 } else
                 {
                     println("Wounds.roll: no lesser entries for type=$type location=$chosenLocation")
@@ -99,7 +99,16 @@ class Wounds
     {
         val wounds = Database.getWounds()
             .filter { parseWoundLocation(it.woundLocation) == location && parseWoundType(it.woundType) == WoundType.BASH && parseWoundSeverity(it.woundSeverity) == WoundSeverity.MODERATE }
-        return wounds.map { WoundEffect(it.woundName, it.woundDescription, location, WoundSeverity.MODERATE) }
+        return wounds.map { WoundEffect(it.woundName, it.woundDescription, location, WoundSeverity.MODERATE, WoundType.BASH) }
+    }
+
+    /**
+     * @throws NoSuchElementException if no wound type is found in the database. Should never occur with initialized DB.
+     */
+    fun rollDevastated(): WoundEffect
+    {
+        val chosenType = listOf(WoundType.CUT, WoundType.BASH, WoundType.PIERCE, WoundType.REND).random()
+        return roll(0, 0, 1, chosenType).first()
     }
 
     //region Parsers
@@ -242,4 +251,4 @@ enum class WoundLocation
     }
 }
 
-data class WoundEffect(val name: String, val description: String, val location: WoundLocation, val severity: WoundSeverity)
+data class WoundEffect(val name: String, val description: String, val location: WoundLocation, val severity: WoundSeverity, val type: WoundType)

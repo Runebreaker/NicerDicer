@@ -2,21 +2,18 @@ package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
 import dev.kord.common.entity.Snowflake
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.respondPublic
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.subCommand
 import dev.kord.rest.builder.interaction.string
 
 object RolePermissionsFunction : FunctionBase("permissions", "Everything for role permissions")
 {
-    var kord: Kord? = null
-
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        this.kord = kord
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             subCommand("mod", "Set the moderator role (admin only)") {
                 string("role", "Role mention or ID to mark as moderator") { required = true }
             }
@@ -37,9 +34,9 @@ object RolePermissionsFunction : FunctionBase("permissions", "Everything for rol
         val response = event.interaction.deferPublicResponse()
         try
         {
-            val guild = kord?.getGuild(Snowflake(guildIdVal))
+            val guild = event.kord.getGuild(Snowflake(guildIdVal))
             val callerId = event.interaction.user.id.toString()
-            if (guild == null || callerId != guild.ownerId.toString())
+            if (callerId != guild.ownerId.toString())
             {
                 response.respond { content = "Only server administrators (guild owner) may use this command." }
                 return
@@ -85,15 +82,5 @@ object RolePermissionsFunction : FunctionBase("permissions", "Everything for rol
             e.printStackTrace()
             response.respond { content = "An internal error occurred while handling the permissions command." }
         }
-    }
-
-    /**
-     * Check whether the given user is a moderator for the guild (has the configured mod role).
-     */
-    suspend fun isModerator(guildId: String, user: dev.kord.core.entity.User): Boolean {
-        val modRole = Database.getModRole(guildId) ?: return false
-        val g = kord?.getGuild(dev.kord.common.entity.Snowflake(guildId)) ?: return false
-        val member = g.getMember(user.id)
-        return member.roleIds.contains(dev.kord.common.entity.Snowflake(modRole))
     }
 }

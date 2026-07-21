@@ -2,18 +2,16 @@ package de.nicerdicer.functions
 
 import dev.kord.common.entity.Permission
 import dev.kord.common.entity.Permissions
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.respondEphemeral
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 
 object ShutdownFunction : FunctionBase("shutdown", "Shutdown the bot!") {
-    var kord: Kord? = null
-
-    override suspend fun prepare(kord: Kord) {
-        kord.createGlobalChatInputCommand(name, description) {
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
+    {
+        builder.apply {
             defaultMemberPermissions = Permissions(Permission.Administrator)
         }
-        this.kord = kord
     }
 
     override suspend fun execute(event: ChatInputCommandInteractionCreateEvent) {
@@ -21,7 +19,7 @@ object ShutdownFunction : FunctionBase("shutdown", "Shutdown the bot!") {
             content = "Shutting down bot..."
         }
         println("Shutting down bot...")
-        kord?.shutdown()
+        event.kord.shutdown()
     }
 
 }

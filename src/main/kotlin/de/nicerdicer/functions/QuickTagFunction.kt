@@ -1,16 +1,16 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
-import dev.kord.core.Kord
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 import dev.kord.core.behavior.interaction.response.respond
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.string
 
 object QuickTagFunction : FunctionBase("t", "Gets a tag!")
 {
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             string("tag_name", "The name of the tag to get") {
                 required = true
             }

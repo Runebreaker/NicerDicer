@@ -1,14 +1,12 @@
 package de.nicerdicer.util
 
 import de.nicerdicer.db.Database
-import de.nicerdicer.functions.RolePermissionsFunction.kord
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.Kord
 import dev.kord.core.entity.Guild
 import dev.kord.core.entity.Role
 import dev.kord.core.entity.User
 import dev.kord.core.entity.effectiveName
-import dev.kord.core.event.Event
 import dev.kord.core.event.interaction.InteractionCreateEvent
 
 object KordUtil {

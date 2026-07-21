@@ -2,17 +2,16 @@ package de.nicerdicer.functions
 
 import de.nicerdicer.db.AugmentEntry
 import de.nicerdicer.db.Database
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.string
 import dev.kord.rest.builder.message.EmbedBuilder
 
 object AugmentFunction : FunctionBase("augment", "Rolls an augment.")
 {
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        println("Preparing augments...")
         try {
             Database.init()
             println("Database initialized for augments.")
@@ -21,7 +20,7 @@ object AugmentFunction : FunctionBase("augment", "Rolls an augment.")
             e.printStackTrace()
         }
 
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             string("category", "e.g. Breaker or Thinker") {
                 required = true
                 for (entry in Classification.entries)

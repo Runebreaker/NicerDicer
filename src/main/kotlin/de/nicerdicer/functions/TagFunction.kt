@@ -2,23 +2,28 @@ package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
 import dev.kord.common.entity.TextInputStyle
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.modal
 import dev.kord.core.behavior.interaction.respondEphemeral
 import dev.kord.core.behavior.interaction.respondPublic
 import dev.kord.core.behavior.interaction.response.respond
+import dev.kord.core.event.interaction.ActionInteractionCreateEvent
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 import dev.kord.core.event.interaction.GuildModalSubmitInteractionCreateEvent
 import dev.kord.core.on
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.string
 import dev.kord.rest.builder.interaction.subCommand
 
 object TagFunction : FunctionBase("tag", "Show given tag.")
 {
-    override suspend fun prepare(kord: Kord)
+    override val modalHandlers: Map<String, suspend (ActionInteractionCreateEvent) -> Unit> = mapOf(
+        "create_tag" to { handleTagCreate(it as GuildModalSubmitInteractionCreateEvent) },
+        "edit_tag" to { handleTagEdit(it as GuildModalSubmitInteractionCreateEvent) }
+    )
+
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        // register command with subcommands: create, edit, delete, get, list
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             subCommand("create", "Create a new tag") {
                 string("name", "Tag name") { required = false }
                 string("content", "Tag content") { required = false }
@@ -34,10 +39,6 @@ object TagFunction : FunctionBase("tag", "Show given tag.")
                 string("name", "Tag name") { required = true }
             }
             subCommand("list", "List your tags")
-        }
-
-        kord.on<GuildModalSubmitInteractionCreateEvent> {
-            handleTagModal(this)
         }
 
         Database.init()
@@ -170,38 +171,33 @@ object TagFunction : FunctionBase("tag", "Show given tag.")
         }
     }
 
-    private suspend fun handleTagModal(event: GuildModalSubmitInteractionCreateEvent)
+    private suspend fun handleTagCreate(event: GuildModalSubmitInteractionCreateEvent)
     {
-        when (event.interaction.modalId) {
-            "create_tag" ->
-            {
-                val name = event.interaction.textInputs["tag_name"]?.value?.trim() ?: ""
-                val tagContent = event.interaction.textInputs["tag_content"]?.value ?: ""
-                if (name.isBlank() || tagContent.isBlank())
-                {
-                    event.interaction.respondEphemeral { content = "Tag name and content cannot be empty." }
-                    return
-                }
-                val ownerId = event.interaction.user.id.toString()
-                val ok = Database.createTag(name, ownerId, tagContent)
-                if (ok) event.interaction.respondEphemeral { content = "Tag '$name' created." }
-                else event.interaction.respondEphemeral { content = "Failed to create tag '$name' — it may already exist (case-insensitive) or an error occurred." }
-            }
-
-            "edit_tag" ->
-            {
-                val name = event.interaction.textInputs["tag_name"]?.value?.trim() ?: ""
-                val tagContent = event.interaction.textInputs["tag_content"]?.value ?: ""
-                if (name.isBlank() || tagContent.isBlank())
-                {
-                    event.interaction.respondEphemeral { content = "Tag name and content cannot be empty." }
-                    return
-                }
-                val ownerId = event.interaction.user.id.toString()
-                val ok = Database.updateTag(name, ownerId, tagContent)
-                if (ok) event.interaction.respondEphemeral { content = "Tag '$name' updated." }
-                else event.interaction.respondEphemeral { content = "Failed to update tag '$name' - it might not exist or you might not be the owner." }
-            }
+        val name = event.interaction.textInputs["tag_name"]?.value?.trim() ?: ""
+        val tagContent = event.interaction.textInputs["tag_content"]?.value ?: ""
+        if (name.isBlank() || tagContent.isBlank())
+        {
+            event.interaction.respondEphemeral { content = "Tag name and content cannot be empty." }
+            return
         }
+        val ownerId = event.interaction.user.id.toString()
+        val ok = Database.createTag(name, ownerId, tagContent)
+        if (ok) event.interaction.respondEphemeral { content = "Tag '$name' created." }
+        else event.interaction.respondEphemeral { content = "Failed to create tag '$name' — it may already exist (case-insensitive) or an error occurred." }
+    }
+
+    private suspend fun handleTagEdit(event: GuildModalSubmitInteractionCreateEvent)
+    {
+        val name = event.interaction.textInputs["tag_name"]?.value?.trim() ?: ""
+        val tagContent = event.interaction.textInputs["tag_content"]?.value ?: ""
+        if (name.isBlank() || tagContent.isBlank())
+        {
+            event.interaction.respondEphemeral { content = "Tag name and content cannot be empty." }
+            return
+        }
+        val ownerId = event.interaction.user.id.toString()
+        val ok = Database.updateTag(name, ownerId, tagContent)
+        if (ok) event.interaction.respondEphemeral { content = "Tag '$name' updated." }
+        else event.interaction.respondEphemeral { content = "Failed to update tag '$name' - it might not exist or you might not be the owner." }
     }
 }

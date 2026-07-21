@@ -1,14 +1,14 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
+import de.nicerdicer.util.KordUtil
 import de.nicerdicer.util.KordUtil.getMemberName
 import de.nicerdicer.util.bold
-import de.nicerdicer.util.box
 import dev.kord.common.entity.Snowflake
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.respondPublic
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.subCommand
 import dev.kord.rest.builder.interaction.string
 import dev.kord.rest.builder.message.addFile
@@ -20,8 +20,6 @@ import java.awt.Color
 
 object TerritoryFunction : FunctionBase("territory", "Everything concerning territories.")
 {
-    var kord: Kord? = null
-
     // Map of territory id -> starting pixel coordinate (x,y) inside the region.
     private val TERRITORY_COORDS: Map<Int, Pair<Int, Int>> = mapOf(
         1 to (200 to 150),
@@ -53,11 +51,9 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
     private const val COLOR_QUEST = "#40E0D0"      // Turquoise
     private const val COLOR_CHALLENGED = "#212121" // Dark Gray
 
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        this.kord = kord
-        // register command with subcommands: claim, release, list, map, challenge, rename
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             subCommand("claim", "Claim a territory (type inferred from your alignment)") {
                 string("id", "Territory id (number)") { required = true }
                 string("name", "Optional: give this territory a custom name") { required = false }
@@ -251,7 +247,7 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
                     }
 
                     val userId = event.interaction.user.id.toString()
-                    val isMod = RolePermissionsFunction.isModerator(guildIdVal, event.interaction.user)
+                    val isMod = KordUtil.isModerator(event.kord, guildIdVal, event.interaction.user)
                     
                     val ok = if (isMod)
                     {
@@ -303,7 +299,7 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
                     }
 
                     // Only moderators can use this
-                    val isMod = RolePermissionsFunction.isModerator(guildIdVal, event.interaction.user)
+                    val isMod = KordUtil.isModerator(event.kord, guildIdVal, event.interaction.user)
                     if (!isMod)
                     {
                         response.respond { content = "Only moderators can assign quest territories." }
@@ -423,7 +419,7 @@ object TerritoryFunction : FunctionBase("territory", "Everything concerning terr
                             {
                                 "${"Owner:".bold()} ${
                                     getMemberName(
-                                        kord,
+                                        event.kord,
                                         event.interaction.data.guildId.value,
                                         Snowflake(t.ownerId)
                                     )
