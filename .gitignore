@@ -36,3 +36,5 @@ replay_pid*
 # Secrets
 /src/main/resources/token.txt
 /.env
+/.command_cache.hash
+/src/main/resources/SmallHavenMap.aseprite
