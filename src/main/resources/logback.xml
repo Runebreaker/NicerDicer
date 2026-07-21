@@ -1,0 +1,19 @@
+<configuration>
+    <!-- Standard Console Output configuration -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 1. Capture the raw WebSocket payloads (Heartbeats, events, payloads) -->
+    <logger name="dev.kord.gateway" level="TRACE" />
+
+    <!-- 2. Capture the raw HTTP REST requests and responses (Slash command payloads) -->
+    <logger name="dev.kord.rest" level="TRACE" />
+
+    <!-- Set the fallback global logging level for everything else (keeps console clean) -->
+    <root level="INFO">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>

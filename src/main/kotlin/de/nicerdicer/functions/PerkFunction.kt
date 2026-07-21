@@ -2,17 +2,16 @@ package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
 import de.nicerdicer.db.PerkEntry
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.subCommand
 import dev.kord.rest.builder.message.EmbedBuilder
 
 object PerkFunction : FunctionBase("perk", "Rolls perks.")
 {
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        println("Preparing perks...")
         try {
             Database.init()
             println("Database initialized for perks.")
@@ -21,8 +20,7 @@ object PerkFunction : FunctionBase("perk", "Rolls perks.")
             e.printStackTrace()
         }
 
-        kord.createGlobalChatInputCommand(name, description)
-        {
+        builder.apply {
             subCommand("power", "Rolls a power perk.")
             subCommand("life", "Rolls a power perk.")
         }

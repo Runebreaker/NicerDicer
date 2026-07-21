@@ -1,16 +1,16 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.util.RollResult
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.string
 
 object ConcFunction : FunctionBase("c", "Roll a concentration check.")
 {
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             string("roll_string", "Optional modifier, such as +1, ++1, or --1") {
                 required = false
             }

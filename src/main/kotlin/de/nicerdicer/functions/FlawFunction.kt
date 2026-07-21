@@ -2,9 +2,9 @@ package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
 import de.nicerdicer.db.PerkEntry
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.subCommand
 import dev.kord.rest.builder.message.EmbedBuilder
 
@@ -12,9 +12,8 @@ object FlawFunction : FunctionBase("flaw", "Rolls flaws.")
 {
     // no local caching: fetch from DB in execute()
 
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        println("Preparing flaws...")
         try {
             Database.init()
             println("Database initialized for flaws.")
@@ -23,7 +22,7 @@ object FlawFunction : FunctionBase("flaw", "Rolls flaws.")
             e.printStackTrace()
         }
 
-        kord.createGlobalChatInputCommand("flaw", "Rolls flaws.") {
+        builder.apply {
             subCommand("power", "Rolls a power flaw.")
             subCommand("life", "Rolls a power flaw.")
         }

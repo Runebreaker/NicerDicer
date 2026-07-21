@@ -4,18 +4,18 @@ import de.nicerdicer.db.Database
 import de.nicerdicer.db.MookClassEntry
 import de.nicerdicer.util.NicerRandom
 import de.nicerdicer.util.bold
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.createPublicFollowup
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.subCommand
 import dev.kord.rest.builder.message.embed
 
 object MookFunction : FunctionBase("mook", "Roll a mook.")
 {
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             subCommand("roll", "Roll a mook") { }
         }
     }

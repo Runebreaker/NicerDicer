@@ -1,17 +1,17 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.util.RollResult
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.createPublicFollowup
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.string
 
 object LegacyRollFunction : FunctionBase("r", "Roll function via a string.")
 {
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             string("roll_string", "What to roll. Format: 3d20+4") {
                 required = false
             }

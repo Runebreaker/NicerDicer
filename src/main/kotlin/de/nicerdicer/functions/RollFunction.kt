@@ -1,16 +1,17 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.util.RollResult
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.createPublicFollowup
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.integer
 import dev.kord.rest.builder.interaction.string
 
 object RollFunction : FunctionBase("roll", "Rolls the dice!") {
-    override suspend fun prepare(kord: Kord) {
-        kord.createGlobalChatInputCommand(name, description) {
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
+    {
+        builder.apply {
             integer(name = "roll_amount", "How many dice to throw; e.g. 3") {
                 required = false
             }

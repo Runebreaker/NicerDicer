@@ -5,13 +5,13 @@ import de.nicerdicer.db.AlignmentEntry
 import de.nicerdicer.util.KordUtil
 import de.nicerdicer.util.bold
 import dev.kord.common.entity.Snowflake
-import dev.kord.core.Kord
 import dev.kord.core.behavior.createRole
 import dev.kord.core.behavior.edit
 import dev.kord.core.behavior.interaction.respondPublic
 import dev.kord.core.behavior.interaction.response.createPublicFollowup
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.subCommand
 import dev.kord.rest.builder.interaction.string
 import dev.kord.rest.builder.interaction.user
@@ -26,17 +26,17 @@ object AlignmentFunction : FunctionBase("alignment", "Everything to do with alig
         validOrders.map { order -> alignmentName(order, intent) }
     }
 
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             subCommand("set", "Set your alignment") {
-                string("order", "Lawful, Neutral, or Chaotic") { 
+                string("order", "Lawful, Neutral, or Chaotic") {
                     required = true
                     validOrders.forEach {
                         choice(it, it)
                     }
                 }
-                string("intent", "Good, Neutral, or Evil") { 
+                string("intent", "Good, Neutral, or Evil") {
                     required = true
                     validIntents.forEach {
                         choice(it, it)

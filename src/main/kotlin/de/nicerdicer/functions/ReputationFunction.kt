@@ -2,16 +2,16 @@ package de.nicerdicer.functions
 
 import de.nicerdicer.db.Database
 import de.nicerdicer.util.bold
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 import dev.kord.rest.builder.interaction.integer
 
 object ReputationFunction : FunctionBase("rep", "Everything to do with reputation!")
 {
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        kord.createGlobalChatInputCommand(name, description) {
+        builder.apply {
             integer("amount", "The amount of rep to add! Can be negative.") { required = false }
         }
     }

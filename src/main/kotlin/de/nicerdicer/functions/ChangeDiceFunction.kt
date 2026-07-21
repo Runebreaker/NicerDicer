@@ -1,15 +1,15 @@
 package de.nicerdicer.functions
 
 import de.nicerdicer.util.NicerRandom
-import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
+import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
 
 object ChangeDiceFunction : FunctionBase("throw", "Throw your dice away and get new ones!")
 {
-    override suspend fun prepare(kord: Kord)
+    override suspend fun defineLayout(builder: ChatInputCreateBuilder)
     {
-        kord.createGlobalChatInputCommand(name, description)
+
     }
 
     override suspend fun execute(event: ChatInputCommandInteractionCreateEvent)
